@@ -1,4 +1,4 @@
-# miq_sprint_statistics
+# sprint_statistics
 
 ## Setup
 - On the github UI, go to your settings page, select "Personal access tokens", Generate a new token, give it a name, no scopes are required, save, copy the token id
@@ -11,7 +11,7 @@
 $ bundle exec ruby closed_issues.rb
 
 Milestone Statistics for: Sprint 42 Ending June 20, 2016
-AUTHOR,ASSIGNEE,LABELS
+NUMBER,AUTHOR,ASSIGNEE,LABELS
 --------------------------------------------------
-bdunne,chessbyte,providers/ansible_tower refactoring ui
+12345,bdunne,chessbyte,providers/ansible_tower refactoring ui
 ```
