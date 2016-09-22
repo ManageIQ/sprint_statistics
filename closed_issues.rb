@@ -18,8 +18,8 @@ end
 results.reject { |i| !i.pull_request? }
 
 puts "Milestone Statistics for: #{results.first.milestone.title}"
-puts "NUMBER,AUTHOR,ASSIGNEE,LABELS"
+puts "NUMBER,TITLE,AUTHOR,ASSIGNEE,LABELS"
 puts "--------------------------------------------------"
 results.each do |i|
-  puts "#{i.number},#{i.user.login},#{i.assignee && i.assignee.login},#{i.labels.collect(&:name).join(" ")}"
+  puts "#{i.number},#{i.title},#{i.user.login},#{i.assignee && i.assignee.login},#{i.labels.collect(&:name).join(" ")}"
 end
