@@ -28,7 +28,11 @@ class SprintStatistics
     results
   end
 
-  def results
-    paginated_fetch(:issues, "ManageIQ/manageiq", :milestone => @milestone, :state => "closed")
+  def issues(repo, options)
+    paginated_fetch(:issues, repo, options)
+  end
+
+  def pull_requests(repo, options)
+    issues(repo, options).reject { |i| !i.pull_request? }
   end
 end
