@@ -27,11 +27,15 @@ class SprintStatistics
     results
   end
 
-  def issues(repo, options)
+  def issues(repo, options = {})
     paginated_fetch(:issues, repo, options)
   end
 
-  def pull_requests(repo, options)
+  def pull_requests(repo, options = {}) # client.pull_requests doesn't honor milestone filter
     issues(repo, options).reject { |i| !i.pull_request? }
+  end
+
+  def project_names_from_org(org)
+    paginated_fetch(:repositories, org).collect(&:full_name)
   end
 end
