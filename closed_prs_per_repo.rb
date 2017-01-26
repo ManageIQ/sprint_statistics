@@ -25,12 +25,15 @@ def repos_to_track
   stats.project_names_from_org("ManageIQ").to_a + ["Ansible/ansible_tower_client_ruby"]
 end
 
+
 results = []
 (repos_to_track - ["ManageIQ/manageiq"]).sort.each do |repo| # manageiq is huge, please get its details from closed_issues.rb
   puts "Collecting pull_requests closed for: #{repo}"
   prs = stats.pull_requests(repo, :state => "closed").select { |pr| sprint_range.include?(pr.closed_at) }
-  results << "#{repo}: #{prs.length}"
+  results << "#{repo},#{prs.length}"
 end
 
-puts "Pull Requests closed from: #{sprint_range.first} to: #{sprint_range.last}"
-puts results.join("\n")
+File.open('closed_prs_per_repo.csv', 'w') do |f|
+  f.puts "Pull Requests closed from: #{sprint_range.first} to: #{sprint_range.last}"
+  results.each { |line| f.puts(line) }
+end
