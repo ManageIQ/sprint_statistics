@@ -35,5 +35,6 @@ end
 
 File.open('closed_prs_per_repo.csv', 'w') do |f|
   f.puts "Pull Requests closed from: #{sprint_range.first} to: #{sprint_range.last}"
+  f.puts "Repository, # Closed"
   results.each { |line| f.puts(line) }
 end
