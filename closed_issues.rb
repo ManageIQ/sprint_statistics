@@ -1,9 +1,13 @@
-MILESTONE = 47
-# subtract 6 from actual Sprint milestone number for the ManageIQ/manageiq repo
 ACCESS_TOKEN = "your github access token"
+MILESTONE    = "Sprint 58 Ending Apr 10, 2017"
+ORGANIZATION = "ManageIQ"
+PROJECT      = "manageiq"
 
 require_relative 'sprint_statistics'
-prs = SprintStatistics.new(ACCESS_TOKEN).pull_requests("ManageIQ/manageiq", :milestone => MILESTONE, :state => "closed")
+fq_repo   = File.join(ORGANIZATION, PROJECT)
+ss        = SprintStatistics.new(ACCESS_TOKEN)
+milestone = ss.client.milestones(fq_repo, :title => MILESTONE).first
+prs       = ss.pull_requests(fq_repo, :milestone => milestone[:number], :state => "closed")
 
 File.open('closed_issues_master_repo.csv', 'w') do |f|
     f.puts "Milestone Statistics for: #{prs.first.milestone.title}"
