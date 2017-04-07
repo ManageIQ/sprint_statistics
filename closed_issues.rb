@@ -9,7 +9,7 @@ ss        = SprintStatistics.new(ACCESS_TOKEN)
 milestone = ss.client.milestones(fq_repo, :title => MILESTONE).first
 prs       = ss.pull_requests(fq_repo, :milestone => milestone[:number], :state => "closed")
 
-File.open('closed_issues_master_repo.csv', 'w') do |f|
+File.open("closed_issues_#{PROJECT}_repo.csv", 'w') do |f|
     f.puts "Milestone Statistics for: #{prs.first.milestone.title}"
     f.puts "NUMBER,TITLE,AUTHOR,ASSIGNEE,LABELS,CLOSED AT,CHANGELOGTEXT"
     prs.each do |i|
