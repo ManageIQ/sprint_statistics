@@ -29,13 +29,14 @@ end
 results = []
 repos_to_track.sort.each do |repo|
   puts "Collecting pull_requests for: #{repo}"
-  prs = stats.pull_requests(repo, :state => :all, :since => sprint_range.first.iso8601)
-  closed = prs.select { |pr| sprint_range.include?(pr.closed_at) }
-  opened = prs.select { |pr| sprint_range.include?(pr.created_at) }
-  results << "#{repo},#{opened.length},#{closed.length}"
+  prs                = stats.pull_requests(repo, :state => :all, :since => sprint_range.first.iso8601)
+  closed             = prs.select { |pr| sprint_range.include?(pr.closed_at) }
+  opened             = prs.select { |pr| sprint_range.include?(pr.created_at) }
+  prs_remaining_open = stats.raw_pull_requests(repo, :state => :open).length
+  results << "#{repo},#{opened.length},#{closed.length},#{prs_remaining_open}"
 end
 
 File.open('prs_per_repo.csv', 'w') do |f|
-  f.puts "Pull Requests from: #{sprint_range.first} to: #{sprint_range.last}.  repo,#opened,#closed"
+  f.puts "Pull Requests from: #{sprint_range.first} to: #{sprint_range.last}.  repo,#opened,#closed,#remaining_open"
   results.each { |line| f.puts(line) }
 end
