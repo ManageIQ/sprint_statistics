@@ -38,4 +38,8 @@ class SprintStatistics
   def project_names_from_org(org)
     paginated_fetch(:repositories, org).collect(&:full_name)
   end
+
+  def raw_pull_requests(repo, options = {})
+    paginated_fetch(:pull_requests, repo, options)
+  end
 end
