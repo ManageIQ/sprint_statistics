@@ -1,9 +1,11 @@
 # sprint_statistics
 
+These rb files were created to capture statistics for use during sprint reviews and to collect information for creating changelogs for individual repositories.  prs_per_repo.rb and closed_issues.rb generate csv files with the output.  
+
 ## Setup
 - On the github UI, go to your settings page, select "Personal access tokens", Generate a new token, give it a name, no scopes are required, save, copy the token id
 - Clone the repo
-- Edit closed_issues.rb or closed_prs_per_repo.rb, paste your token ID & change the milestone ID if necessary
+- Edit closed_issues.rb or prs_per_repo.rb, paste your token ID & change the milestone ID if necessary
 ```bundle install```
 
 ## Usage
@@ -17,7 +19,7 @@ NUMBER,AUTHOR,ASSIGNEE,LABELS
 ```
 
 ```
-$ bundle exec ruby closed_prs_per_repo.rb
+$ bundle exec ruby prs_per_repo.rb
 ...
 Collecting pull_requests closed for: ManageIQ/virtfs-xfs
 Collecting pull_requests closed for: ManageIQ/win32-service
