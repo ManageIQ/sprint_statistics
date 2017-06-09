@@ -1,0 +1,22 @@
+---
+:github_organization: ManageIQ
+:milestone_reference_repo: ManageIQ/manageiq
+:additional_repos: []
+:excluded_repos:
+- ManageIQ/handsoap
+- ManageIQ/sprint_statistics
+- ManageIQ/integration_tests
+- ManageIQ/guides
+:priority:
+- :prefix: E
+  :label: enhancement
+- :prefix: B
+  :label: bug
+- :prefix: T
+  :label: technical debt
+- :prefix: R
+  :label: refactoring
+:filters:
+  :users: []
+  :labels: []
+  :non_filtered_repos: []
