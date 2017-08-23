@@ -2,8 +2,25 @@ require 'active_support'
 require 'active_support/core_ext'
 
 class SprintStatistics
-  def initialize(access_token)
+  def initialize(access_token, milestone_string)
     @access_token = access_token
+    @milestone_string = milestone_string
+  end
+
+  def current_milestone
+    @current_milestone ||= client.milestones("ManageIQ/manageiq", :state => "all").detect { |m| m.title == @milestone_string }
+  end
+
+  def previous_milestone
+    @previous_milestone ||= client.milestone("ManageIQ/manageiq", (current_milestone.number - 1))
+  end
+
+  def sprint_range
+    @sprint_range ||= ((previous_milestone.due_on.utc.midnight + 1.day)..(current_milestone.due_on.utc.midnight + 1.day))
+  end
+
+  def default_repos
+    @default_repos ||= stats.project_names_from_org("ManageIQ").to_a + ["Ansible/ansible_tower_client_ruby"]
   end
 
   def client
