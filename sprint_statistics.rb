@@ -7,8 +7,12 @@ class SprintStatistics
     @milestone_string = milestone_string
   end
 
+  def find_milestone_in_repo(repo)
+    client.milestones(repo, :state => "all").detect { |m| m.title == @milestone_string }
+  end
+
   def current_milestone
-    @current_milestone ||= client.milestones("ManageIQ/manageiq", :state => "all").detect { |m| m.title == @milestone_string }
+    @current_milestone ||= find_milestone_in_repo("ManageIQ/manageiq")
   end
 
   def previous_milestone
