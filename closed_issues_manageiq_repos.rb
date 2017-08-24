@@ -3,18 +3,14 @@ MILESTONE    = "title of end of sprint milestone"
 
 require_relative 'sprint_statistics'
 def stats
-  @stats ||= SprintStatistics.new(ACCESS_TOKEN)
-end
-
-def repos_to_track
-  stats.project_names_from_org("ManageIQ").to_a + ["Ansible/ansible_tower_client_ruby"]
+  @stats ||= SprintStatistics.new(ACCESS_TOKEN, MILESTONE)
 end
 
 prs = []
 title = ""
 
-repos_to_track.each do |repo|
-  milestone = stats.client.milestones(repo, :state => "all").detect { |m| m[:title] == MILESTONE }
+stats.default_repos.each do |repo|
+  milestone = stats.find_milestone_in_repo(repo)
   if milestone
     puts "Milestone found for #{repo}, collecting."
     title = milestone.title
