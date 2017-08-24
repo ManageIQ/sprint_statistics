@@ -16,7 +16,11 @@ class SprintStatistics
   end
 
   def previous_milestone
-    @previous_milestone ||= client.milestone("ManageIQ/manageiq", (current_milestone.number - 1))
+    @previous_milestone ||= begin
+      current_milestone_number = current_milestone.title.match(/Sprint (\d+)/)[1].to_i
+      previous_milestone_number = current_milestone_number - 1
+      client.milestones("ManageIQ/manageiq", :state => "all").detect { |m| m.title.start_with?("Sprint #{previous_milestone_number}") }
+    end
   end
 
   def sprint_range
