@@ -2,7 +2,7 @@ require 'active_support'
 require 'active_support/core_ext'
 
 class SprintStatistics
-  def initialize(access_token, milestone_string)
+  def initialize(access_token, milestone_string = nil)
     @access_token = access_token
     @milestone_string = milestone_string
   end
