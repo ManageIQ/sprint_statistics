@@ -21,18 +21,28 @@ NUMBER,AUTHOR,ASSIGNEE,LABELS
 ```
 $ bundle exec ruby prs_per_repo.rb
 ...
-Collecting pull_requests closed for: ManageIQ/virtfs-xfs
-Collecting pull_requests closed for: ManageIQ/win32-service
-Collecting pull_requests closed for: ManageIQ/wrapanapi
-Collecting pull_requests closed for: ManageIQ/ziya
-Pull Requests closed from: 2017-01-09 00:00:00 UTC to: 2017-01-23 00:00:00 UTC
-Ansible/ansible_tower_client_ruby: 10
-ManageIQ/FireBreath: 0
-ManageIQ/WinRM: 0
-ManageIQ/actionwebservice: 0
-ManageIQ/active_bugzilla: 0
-ManageIQ/activerecord-sqlserver-adapter: 0
-ManageIQ/awesome_spawn: 1
-ManageIQ/azure-armrest: 2
+Collecting pull_requests for: ManageIQ/manageiq-automation_engine
+  Closed/Unmerged: ["https://github.com/ManageIQ/manageiq-automation_engine/pull/57", "https://github.com/ManageIQ/manageiq-automation_engine/pull/53", "https://github.com/ManageIQ/manageiq-automation_engine/pull/27"]
+  Closed/Merged: ["https://github.com/ManageIQ/manageiq-automation_engine/pull/61"]
+  Closed/Merged Labels: {"bug"=>1, "euwe/backported"=>1, "fine/backported"=>1}
+Collecting pull_requests for: ManageIQ/manageiq-content
+  ERROR: https://github.com/ManageIQ/manageiq-content/pull/138 is missing a Milestone!!!
+  Closed/Unmerged: []
+  Closed/Merged: ["https://github.com/ManageIQ/manageiq-content/pull/169", "https://github.com/ManageIQ/manageiq-content/pull/168", "https://github.com/ManageIQ/manageiq-content/pull/167", "https://github.com/ManageIQ/manageiq-content/pull/166", "https://github.com/ManageIQ/manageiq-content/pull/162", "https://github.com/ManageIQ/manageiq-content/pull/138"]
+  Closed/Merged Labels: {"enhancement"=>2, "fine/backported"=>3, "bug"=>2, "test"=>1, "documentation"=>1, "services"=>1, "euwe/backported"=>1}
+Collecting pull_requests for: ManageIQ/manageiq-design
+  Closed/Unmerged: []
+  Closed/Merged: []
+  Closed/Merged Labels: {}
+...
+
+$ cat prs_per_repo.csv
+Pull Requests from: 2017-08-08 00:00:00 UTC to: 2017-08-22 00:00:00 UTC.  repo,#opened,#merged,closed_bug,closed_enhancement,closed_developer,closed_documentation,closed_performance,closed_refactoring,closed_technical debt,closed_test,#remaining_open
+Ansible/ansible_tower_client_ruby,1,1,1,1,0,0,0,0,0,0,2
+ManageIQ/FireBreath,0,0,0,0,0,0,0,0,0,0,0
+ManageIQ/WinRM,1,0,0,0,0,0,0,0,0,0,1
+ManageIQ/actionwebservice,1,0,0,0,0,0,0,0,0,0,1
+ManageIQ/active_bugzilla,0,0,0,0,0,0,0,0,0,0,1
+ManageIQ/activerecord-id_regions,0,0,0,0,0,0,0,0,0,0,0
 ...
 ```
