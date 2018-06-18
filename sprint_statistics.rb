@@ -8,7 +8,7 @@ class SprintStatistics
   end
 
   def find_milestone_in_repo(repo, milestone = @milestone_string)
-    client.milestones(repo, :state => "all", :per_page => 1000).detect { |m| m.title.start_with?(milestone) }
+    client.milestones(repo, :state => "all").detect { |m| m.title.start_with?(milestone) }
   end
 
   def current_milestone
@@ -34,26 +34,18 @@ class SprintStatistics
   def client
     @client ||= begin
       require 'octokit'
+      Octokit.auto_paginate = true
       Octokit::Client.new(:access_token => @access_token)
     end
   end
 
-  def paginated_fetch(collection, *args)
-    options          = args.extract_options!
-    options[:page] ||= 1
-
-    results = []
-    loop do
-      response = client.send(collection, *args, options)
-      break if response == []
-      results += response
-      options[:page] += 1
-    end
-    results
+  def fetch(collection, *args)
+    options = args.extract_options!
+    client.send(collection, *args, options)
   end
 
   def issues(repo, options = {})
-    paginated_fetch(:issues, repo, options)
+    fetch(:issues, repo, options)
   end
 
   def pull_requests(repo, options = {}) # client.pull_requests doesn't honor milestone filter
@@ -61,10 +53,10 @@ class SprintStatistics
   end
 
   def project_names_from_org(org)
-    paginated_fetch(:repositories, org).collect(&:full_name)
+    fetch(:repositories, org).collect(&:full_name)
   end
 
   def raw_pull_requests(repo, options = {})
-    paginated_fetch(:pull_requests, repo, options)
+    fetch(:pull_requests, repo, options)
   end
 end
