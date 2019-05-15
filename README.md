@@ -8,6 +8,8 @@ These rb files were created to capture statistics for use during sprint reviews 
 - Edit closed_issues.rb or prs_per_repo.rb, paste your token ID & change the milestone ID if necessary
 ```bundle install```
 
+(If you're only interested in the prs_per_repo on a couple repos, you can add an additional section in the config.yaml for included_repos and change the ```repos_to_track``` method inside of merged_prs_per_sprint.rb to only use those repos.)
+
 ## Usage
 ```
 $ bundle exec ruby closed_issues.rb
