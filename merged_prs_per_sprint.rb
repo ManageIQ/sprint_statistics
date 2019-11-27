@@ -93,7 +93,7 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   all_prs = milestone_prs(milestone, milestone_range, fq_repo_name)
 
   if filter_repo_prs?(fq_repo_name)
-    prs, = all_prs.partition { |pr| filters_match?(pr) }
+    prs = all_prs.select { |pr| filters_match?(pr) }
   else
     prs = all_prs
   end
@@ -117,7 +117,7 @@ def process_repos(milestone)
   File.open("merged_prs_for #{milestone.title}.md", 'w') do |f|
     write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone.title}\"  (#{milestone_range})")
 
-    empty_repos = repos_to_track.delete_if do |fq_repo_name|
+    empty_repos = repos_to_track.reject do |fq_repo_name|
       process_repo(fq_repo_name, milestone, milestone_range, f)
     end
     puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"

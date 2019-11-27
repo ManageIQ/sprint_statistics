@@ -48,8 +48,9 @@ class SprintStatistics
     fetch(:issues, repo, options)
   end
 
-  def pull_requests(repo, options = {}) # client.pull_requests doesn't honor milestone filter
-    issues(repo, options).reject { |i| !i.pull_request? }
+  def pull_requests(repo, options = {})
+    # client.pull_requests doesn't honor milestone filter, so use client.issues instead
+    issues(repo, options).select(&:pull_request?)
   end
 
   def project_names_from_org(org)
