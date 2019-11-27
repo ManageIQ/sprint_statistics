@@ -73,7 +73,7 @@ class SprintStatistics
   end
 
   def project_names_from_org(org)
-    fetch(:repositories, org).collect(&:full_name)
+    fetch(:repositories, org).reject { |r| r.archived? || r.fork? }.collect(&:full_name)
   end
 
   def raw_pull_requests(repo, options = {})
