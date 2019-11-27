@@ -36,14 +36,6 @@ def repos_to_track
   repos - @config[:excluded_repos].to_a
 end
 
-def prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-  [].tap do |prs|
-    stats.pull_requests(fq_repo_name, :state => "closed", :sort => 'closed_at', :direction => 'desc').each do |pr|
-      prs << pr if milestone_range.include?(pr.updated_at.to_date)
-    end
-  end
-end
-
 def filters_match?(pr)
   return true if user_filters.include?(pr.user.login.downcase)
   return true unless (label_filters & pr.labels.collect(&:name)).blank?
@@ -73,12 +65,17 @@ def title_markdown(pr)
 end
 
 def milestone_prs(milestone, milestone_range, fq_repo_name)
-  prs = if milestone
-          stats.pull_requests(fq_repo_name, :state => "closed", :milestone => milestone[:number])
-          # stats.search_issues(fq_repo_name, milestone)
-        else
-          prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-        end
+  params = {:state => "closed", :sort => 'closed_at', :direction => 'desc'}
+
+  prs =
+    if milestone
+      stats.pull_requests(fq_repo_name, params.merge(:milestone => milestone.number))
+    else
+      since = milestone_range.begin.in_time_zone("US/Pacific").iso8601
+      stats.pull_requests(fq_repo_name, params.merge(:since => since)).select do |pr|
+        milestone_range.include?(pr.updated_at.to_date)
+      end
+    end
 
   prs.each { |pr| pr.label_names = pr.labels.collect(&:name) }
   prs
