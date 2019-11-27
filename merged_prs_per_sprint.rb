@@ -98,13 +98,28 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   [prs, all_prs.count]
 end
 
-def process_repo(fq_repo_name, milestone_title, milestone_range, f)
+def fetch_repo_prs_parallel(repos, milestone_title, milestone_range)
+  require 'parallel'
+
+  puts "Fetching..."
+  repo_prs = Parallel.map(repos, :in_threads => 8) do |fq_repo_name|
+    puts "  #{fq_repo_name}"
+    [fq_repo_name, fetch_repo_prs(fq_repo_name, milestone_title, milestone_range)]
+  end
+  puts
+
+  repo_prs
+end
+
+def fetch_repo_prs(fq_repo_name, milestone_title, milestone_range)
   # Each repo has a different milestone number, so we have to lookup by name
   milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == milestone_title }
-  prs, total_pr_count = prs_for_milestone(milestone, milestone_range, fq_repo_name)
-  return if prs.count.zero?
 
-  write_stdout_and_file(f, '')
+  prs_for_milestone(milestone, milestone_range, fq_repo_name)
+end
+
+def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
+  f.puts('')
   write_stdout_and_file(f, "Repo: #{fq_repo_name}  PR (Selected/Total): (#{prs.count}/#{total_pr_count})")
   prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
 end
@@ -114,10 +129,20 @@ def process_repos(milestone_title)
 
   File.open("merged_prs_for #{milestone_title}.md", 'w') do |f|
     write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone_title}\"  (#{milestone_range})")
+    write_stdout_and_file(f, "")
 
-    empty_repos = repos_to_track.reject do |fq_repo_name|
-      process_repo(fq_repo_name, milestone_title, milestone_range, f)
+    repo_prs = fetch_repo_prs_parallel(repos_to_track, milestone_title, milestone_range)
+
+    empty_repos = []
+    repo_prs.each do |fq_repo_name, (prs, total_pr_count)|
+      if prs.empty?
+        empty_repos << fq_repo_name
+      else
+        write_repo_prs(fq_repo_name, prs, total_pr_count, f)
+      end
     end
+
+    puts
     puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"
   end
 end
@@ -125,6 +150,7 @@ end
 def completed_in
   start_time = Time.now
   yield
+  puts
   puts "Completed in #{Time.now - start_time}"
 end
 
