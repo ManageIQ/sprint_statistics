@@ -93,7 +93,7 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   all_prs = milestone_prs(milestone, milestone_range, fq_repo_name)
 
   if filter_repo_prs?(fq_repo_name)
-    prs, = all_prs.partition { |pr| filters_match?(pr) }
+    prs = all_prs.select { |pr| filters_match?(pr) }
   else
     prs = all_prs
   end
@@ -101,8 +101,9 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   [prs, all_prs.count]
 end
 
-def process_repo(fq_repo_name, milestone, milestone_range, f)
-  milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == milestone.title }
+def process_repo(fq_repo_name, milestone_title, milestone_range, f)
+  # Each repo has a different milestone number, so we have to lookup by name
+  milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == milestone_title }
   prs, total_pr_count = prs_for_milestone(milestone, milestone_range, fq_repo_name)
   return if prs.count.zero?
 
@@ -111,14 +112,14 @@ def process_repo(fq_repo_name, milestone, milestone_range, f)
   prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
 end
 
-def process_repos(milestone)
-  milestone_range = Milestone.range(milestone.title)
+def process_repos(milestone_title)
+  milestone_range = Milestone.range(milestone_title)
 
-  File.open("merged_prs_for #{milestone.title}.md", 'w') do |f|
-    write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone.title}\"  (#{milestone_range})")
+  File.open("merged_prs_for #{milestone_title}.md", 'w') do |f|
+    write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone_title}\"  (#{milestone_range})")
 
-    empty_repos = repos_to_track.delete_if do |fq_repo_name|
-      process_repo(fq_repo_name, milestone, milestone_range, f)
+    empty_repos = repos_to_track.reject do |fq_repo_name|
+      process_repo(fq_repo_name, milestone_title, milestone_range, f)
     end
     puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"
   end
@@ -132,5 +133,6 @@ end
 
 milestone = Milestone.prompt_for_milestone
 exit if milestone.nil?
+milestone = milestone.title
 
 completed_in { process_repos(milestone) }

@@ -34,7 +34,26 @@ class SprintStatistics
   def client
     @client ||= begin
       require 'octokit'
-      Octokit.auto_paginate = true
+      Octokit.configure do |c|
+        c.auto_paginate = true
+        c.middleware = Faraday::RackBuilder.new do |builder|
+          if ENV['DEBUG']
+            builder.use(
+              Class.new(Faraday::Response::Middleware) do
+                def on_complete(env)
+                  api_calls_remaining = env.response_headers['x-ratelimit-remaining']
+                  STDOUT.puts "DEBUG: Executed #{env.method.to_s.upcase} #{env.url} ... api calls remaining #{api_calls_remaining}"
+                end
+              end
+            )
+          end
+
+          builder.use Octokit::Response::RaiseError
+          builder.use Octokit::Response::FeedParser
+          builder.adapter Faraday.default_adapter
+        end
+      end
+
       Octokit::Client.new(:access_token => @access_token)
     end
   end
@@ -48,8 +67,9 @@ class SprintStatistics
     fetch(:issues, repo, options)
   end
 
-  def pull_requests(repo, options = {}) # client.pull_requests doesn't honor milestone filter
-    issues(repo, options).reject { |i| !i.pull_request? }
+  def pull_requests(repo, options = {})
+    # client.pull_requests doesn't honor milestone filter, so use client.issues instead
+    issues(repo, options).select(&:pull_request?)
   end
 
   def project_names_from_org(org)
