@@ -20,6 +20,14 @@ def priorities
   end
 end
 
+def user_filters
+  @user_filters ||= (@config.dig(:filters, :users) || []).map(&:downcase)
+end
+
+def label_filters
+  @label_filters ||= @config.dig(:filters, :labels) || []
+end
+
 def repos_to_track
   organization = @config[:github_organization]
   puts "Loading Organization: #{organization}"
@@ -37,19 +45,13 @@ def prs_for_repos_without_milestones(fq_repo_name, milestone_range)
 end
 
 def filters_match?(pr)
-  user_filters = @config.dig(:filters, :users) || []
-  return true if user_filters.include?(pr.user.login)
-
-  label_filters = @config.dig(:filters, :labels) || []
+  return true if user_filters.include?(pr.user.login.downcase)
   return true unless (label_filters & pr.labels.collect(&:name)).blank?
 
   false
 end
 
 def filter_repo_prs?(fq_repo_name)
-  user_filters = @config.dig(:filters, :users)
-  label_filters = @config.dig(:filters, :labels)
-
   return false if user_filters.blank? && label_filters.blank?
 
   !@config.dig(:filters, :non_filtered_repos).include?(fq_repo_name)
