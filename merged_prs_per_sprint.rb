@@ -36,14 +36,6 @@ def repos_to_track
   repos - @config[:excluded_repos].to_a
 end
 
-def prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-  [].tap do |prs|
-    stats.pull_requests(fq_repo_name, :state => "closed", :sort => 'closed_at', :direction => 'desc').each do |pr|
-      prs << pr if milestone_range.include?(pr.updated_at.to_date)
-    end
-  end
-end
-
 def filters_match?(pr)
   return true if user_filters.include?(pr.user.login.downcase)
   return true unless (label_filters & pr.labels.collect(&:name)).blank?
@@ -73,12 +65,17 @@ def title_markdown(pr)
 end
 
 def milestone_prs(milestone, milestone_range, fq_repo_name)
-  prs = if milestone
-          stats.pull_requests(fq_repo_name, :state => "closed", :milestone => milestone[:number])
-          # stats.search_issues(fq_repo_name, milestone)
-        else
-          prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-        end
+  params = {:state => "closed", :sort => 'closed_at', :direction => 'desc'}
+
+  prs =
+    if milestone
+      stats.pull_requests(fq_repo_name, params.merge(:milestone => milestone.number))
+    else
+      since = milestone_range.begin.in_time_zone("US/Pacific").iso8601
+      stats.pull_requests(fq_repo_name, params.merge(:since => since)).select do |pr|
+        milestone_range.include?(pr.updated_at.to_date)
+      end
+    end
 
   prs.each { |pr| pr.label_names = pr.labels.collect(&:name) }
   prs
@@ -101,13 +98,28 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   [prs, all_prs.count]
 end
 
-def process_repo(fq_repo_name, milestone_title, milestone_range, f)
+def fetch_repo_prs_parallel(repos, milestone_title, milestone_range)
+  require 'parallel'
+
+  puts "Fetching..."
+  repo_prs = Parallel.map(repos, :in_threads => 8) do |fq_repo_name|
+    puts "  #{fq_repo_name}"
+    [fq_repo_name, fetch_repo_prs(fq_repo_name, milestone_title, milestone_range)]
+  end
+  puts
+
+  repo_prs
+end
+
+def fetch_repo_prs(fq_repo_name, milestone_title, milestone_range)
   # Each repo has a different milestone number, so we have to lookup by name
   milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == milestone_title }
-  prs, total_pr_count = prs_for_milestone(milestone, milestone_range, fq_repo_name)
-  return if prs.count.zero?
 
-  write_stdout_and_file(f, '')
+  prs_for_milestone(milestone, milestone_range, fq_repo_name)
+end
+
+def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
+  f.puts('')
   write_stdout_and_file(f, "Repo: #{fq_repo_name}  PR (Selected/Total): (#{prs.count}/#{total_pr_count})")
   prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
 end
@@ -117,10 +129,20 @@ def process_repos(milestone_title)
 
   File.open("merged_prs_for #{milestone_title}.md", 'w') do |f|
     write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone_title}\"  (#{milestone_range})")
+    write_stdout_and_file(f, "")
 
-    empty_repos = repos_to_track.reject do |fq_repo_name|
-      process_repo(fq_repo_name, milestone_title, milestone_range, f)
+    repo_prs = fetch_repo_prs_parallel(repos_to_track, milestone_title, milestone_range)
+
+    empty_repos = []
+    repo_prs.each do |fq_repo_name, (prs, total_pr_count)|
+      if prs.empty?
+        empty_repos << fq_repo_name
+      else
+        write_repo_prs(fq_repo_name, prs, total_pr_count, f)
+      end
     end
+
+    puts
     puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"
   end
 end
@@ -128,6 +150,7 @@ end
 def completed_in
   start_time = Time.now
   yield
+  puts
   puts "Completed in #{Time.now - start_time}"
 end
 

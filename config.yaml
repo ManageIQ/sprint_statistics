@@ -3,10 +3,18 @@
 :milestone_reference_repo: ManageIQ/manageiq
 :additional_repos: []
 :excluded_repos:
-- ManageIQ/handsoap
-- ManageIQ/sprint_statistics
+- ManageIQ/active_bugzilla
+- ManageIQ/bugzilla_mirror
+- ManageIQ/bugzilla_mirror_client
 - ManageIQ/integration_tests
-- ManageIQ/guides
+- ManageIQ/manageiq-appliance-dev-setup
+- ManageIQ/manageiq-performance
+- ManageIQ/manageiq-release
+- ManageIQ/manageiq-vagrant-dev
+- ManageIQ/miq_tools_services
+- ManageIQ/polisher
+- ManageIQ/sprint_statistics
+- ManageIQ/wrapanapi
 :priority:
 - :prefix: E
   :label: enhancement
