@@ -3,9 +3,6 @@
 :milestone_reference_repo: ManageIQ/manageiq
 :additional_repos: []
 :excluded_repos:
-- ManageIQ/active_bugzilla
-- ManageIQ/bugzilla_mirror
-- ManageIQ/bugzilla_mirror_client
 - ManageIQ/integration_tests
 - ManageIQ/manageiq-appliance-dev-setup
 - ManageIQ/manageiq-performance
