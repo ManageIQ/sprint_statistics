@@ -124,9 +124,7 @@ def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
   prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
 end
 
-def process_repos(milestone_title)
-  milestone_range = Milestone.range(milestone_title)
-
+def process_repos(milestone_title, milestone_range)
   File.open("merged_prs_for #{milestone_title}.md", 'w') do |f|
     write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone_title}\"  (#{milestone_range})")
     write_stdout_and_file(f, "")
@@ -154,8 +152,6 @@ def completed_in
   puts "Completed in #{Time.now - start_time}"
 end
 
-milestone = Milestone.prompt_for_milestone
-exit if milestone.nil?
-milestone = milestone.title
-
-completed_in { process_repos(milestone) }
+sprint = Milestone.prompt_for_sprint
+exit if sprint.nil?
+completed_in { process_repos(sprint.title, sprint.range) }
