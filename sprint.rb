@@ -1,11 +1,11 @@
-class Milestone
-  def self.prompt_for_sprint
-    sprints = recent_sprints(3).reverse
+class Sprint
+  def self.prompt_for_sprint(count)
+    sprints = recent_sprints(count).reverse
     default_index = Date.today == sprints.first.range.begin ? 1 : 0
     sprints[prompt_user(sprints, default_index)]
   end
 
-  def self.prompt_user(sprints, default_index)
+  private_class_method def self.prompt_user(sprints, default_index)
     default_index += 1
 
     sprints.each_with_index { |s, i| puts "#{i + 1} : #{s.title}" }
