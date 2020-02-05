@@ -5,7 +5,7 @@ require 'yaml'
 @config = YAML.load_file('config.yaml')
 
 def github_api_token
-  @github_api_token ||= ENV["GITHUB_API_TOKEN"]
+  @github_api_token ||= ENV["GITHUB_API_TOKEN"] || @config[:access_token]
 end
 
 def stats
