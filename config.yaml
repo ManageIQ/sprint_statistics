@@ -1,5 +1,6 @@
 ---
 :github_organization: ManageIQ
+:scan_default_repos: true
 :number_of_days_selection: 7
 :sprint_length_in_weeks: 2
 :sprint_end_day: monday

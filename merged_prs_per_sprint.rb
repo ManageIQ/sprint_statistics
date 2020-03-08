@@ -52,8 +52,9 @@ def repos_to_track
     puts "Loading Organization: #{organization}"
 
     stats = SprintStatistics.new(ENV["OCTOKIT_ACCESS_TOKEN"])
-
-    repos = stats.default_repos + Array(@config[:additional_repos])
+    repos = []
+    repos += stats.default_repos unless @config[:scan_default_repos] == false
+    repos += Array(@config[:additional_repos]) + Array(@config.dig(:filters, :non_filtered_repos))
     repos -= Array(@config[:excluded_repos])
     repos.uniq!
     repos
