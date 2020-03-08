@@ -1,6 +1,8 @@
 ---
 :github_organization: ManageIQ
-:milestone_reference_repo: ManageIQ/manageiq
+:number_of_days_selection: 7
+:sprint_length_in_weeks: 2
+:sprint_end_day: monday
 :additional_repos: []
 :excluded_repos:
 - ManageIQ/handsoap
@@ -17,6 +19,7 @@
 - :prefix: R
   :label: refactoring
 :filters:
+  :enabled: false
   :users: []
   :labels: []
   :non_filtered_repos: []

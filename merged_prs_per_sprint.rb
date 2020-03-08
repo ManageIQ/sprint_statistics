@@ -1,15 +1,41 @@
 require_relative 'sprint_statistics'
-require_relative 'milestone'
+require_relative 'date_range'
 require 'yaml'
+
+PRS_COUNT_PER_REPO = 100
 
 @config = YAML.load_file('config.yaml')
 
-def github_api_token
-  @github_api_token ||= ENV["GITHUB_API_TOKEN"]
+def prereq_check
+
+  ENV["OCTOKIT_ACCESS_TOKEN"].blank?
+
+  if ENV["OCTOKIT_ACCESS_TOKEN"].blank?
+    puts <<~ENV_VAR
+    Error: Environment variable OCTOKIT_ACCESS_TOKEN is not defined.
+    Please visit https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line for steps to create a personal access token
+    For additional information visit on authentication visit: https://github.com/octokit/octokit.rb#authentication
+
+    Run: OCTOKIT_ACCESS_TOKEN=<api_token> ruby merged_prs_per_sprint.rb
+
+    OR
+
+    Export the environment variable in one of your scripts
+    export OCTOKIT_ACCESS_TOKEN=<api_token>
+
+    Run: ruby merged_prs_per_sprint.rb
+
+    ENV_VAR
+    exit
+  end
 end
 
-def stats
-  @stats ||= SprintStatistics.new(github_api_token)
+def client
+  @client ||= begin
+    require 'octokit'
+    Octokit.auto_paginate = false
+    Octokit::Client.new  # Uses OCTOKIT_ACCESS_TOKEN
+  end
 end
 
 def priorities
@@ -21,19 +47,40 @@ def priorities
 end
 
 def repos_to_track
-  organization = @config[:github_organization]
-  puts "Loading Organization: #{organization}"
+  @repos_to_track ||= begin
+    organization = @config[:github_organization]
+    puts "Loading Organization: #{organization}"
 
-  repos = stats.project_names_from_org(organization).to_a + @config[:additional_repos].to_a
-  repos - @config[:excluded_repos].to_a
+    stats = SprintStatistics.new(ENV["OCTOKIT_ACCESS_TOKEN"])
+
+    repos = stats.default_repos + Array(@config[:additional_repos])
+    repos -= Array(@config[:excluded_repos])
+    repos.uniq!
+    repos
+  end
 end
 
-def prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-  [].tap do |prs|
-    stats.pull_requests(fq_repo_name, :state => "closed", :sort => 'closed_at', :direction => 'desc').each do |pr|
-      prs << pr if milestone_range.include?(pr.updated_at.to_date)
+def merged_prs(fq_repo_name, date_range)
+  filters = {
+    :state     => "closed",
+    :sort      => 'closed_at',
+    :direction => 'desc',
+    :per_page => PRS_COUNT_PER_REPO,
+  }
+
+  # PRs are a type of issue.  Using issues because it returns significantly less data per-record.
+  # In one test the issue returned 1/3 less properties
+  client.issues(fq_repo_name, filters).each_with_object([]) do |pr, prs|
+    if process_pr?(pr, fq_repo_name, date_range)
+      pr.label_names = pr.labels.collect(&:name)
+      prs << pr
     end
   end
+end
+
+def process_pr?(pr, fq_repo_name, date_range)
+  pr.pull_request? && date_range.include?(pr.closed_at) && !changelog?(pr) &&
+    client.pull_merged?(fq_repo_name, pr.number)
 end
 
 def filters_match?(pr)
@@ -41,7 +88,7 @@ def filters_match?(pr)
   return true if user_filters.include?(pr.user.login)
 
   label_filters = @config.dig(:filters, :labels) || []
-  return true unless (label_filters & pr.labels.collect(&:name)).blank?
+  return true unless (label_filters & pr.label_names).blank?
 
   false
 end
@@ -66,29 +113,25 @@ def prioritize_prs(prs)
   end.sort_by(&:priority)
 end
 
-def title_markdown(pr)
-  "[#{pr.title} (##{pr.number})](#{pr.pull_request.html_url})"
+def changelog?(pr)
+  pr.title.downcase.start_with?("[changelog]")
 end
 
-def milestone_prs(milestone, milestone_range, fq_repo_name)
-  prs = if milestone
-          stats.pull_requests(fq_repo_name, :state => "closed", :milestone => milestone[:number])
-          # stats.search_issues(fq_repo_name, milestone)
-        else
-          prs_for_repos_without_milestones(fq_repo_name, milestone_range)
-        end
-
-  prs.each { |pr| pr.label_names = pr.labels.collect(&:name) }
-  prs
+def title_markdown(pr)
+  "[#{pr.title} (##{pr.number})](#{pr&.pull_request&.html_url || pr.url})"
 end
 
 def write_stdout_and_file(f, line)
   puts line
+  write_file(f, line)
+end
+
+def write_file(f, line)
   f.puts line + "<br/>"
 end
 
-def prs_for_milestone(milestone, milestone_range, fq_repo_name)
-  all_prs = milestone_prs(milestone, milestone_range, fq_repo_name)
+def filtered_prs(date_range, fq_repo_name)
+  all_prs = merged_prs(fq_repo_name, date_range)
 
   if filter_repo_prs?(fq_repo_name)
     prs, = all_prs.partition { |pr| filters_match?(pr) }
@@ -99,26 +142,37 @@ def prs_for_milestone(milestone, milestone_range, fq_repo_name)
   [prs, all_prs.count]
 end
 
-def process_repo(fq_repo_name, milestone, milestone_range, f)
-  milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == milestone.title }
-  prs, total_pr_count = prs_for_milestone(milestone, milestone_range, fq_repo_name)
-  return if prs.count.zero?
+def process_repo(fq_repo_name, date_range, f)
+  print "Repo: #{fq_repo_name} "
+  prs, total_pr_count = filtered_prs(date_range, fq_repo_name)
+  if prs.count.zero?
+    puts
+    return
+  end
 
-  write_stdout_and_file(f, '')
-  write_stdout_and_file(f, "Repo: #{fq_repo_name}  PR (Selected/Total): (#{prs.count}/#{total_pr_count})")
+  pr_count = "(Selected/Total): (#{prs.count}/#{total_pr_count})"
+  puts pr_count
+  write_file(f, '')
+  write_file(f, "Repo: #{fq_repo_name}  #{pr_count}")
   prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
 end
 
-def process_repos(milestone)
-  milestone_range = Milestone.range(milestone.title)
+def process_repos(date_range)
+  output_file = File.join(File.dirname(__FILE__) , "merged_prs_for #{date_range.to_s}.md")
 
-  File.open("merged_prs_for #{milestone.title}.md", 'w') do |f|
-    write_stdout_and_file(f, "Milestone Statistics for: \"#{milestone.title}\"  (#{milestone_range})")
+  File.open(output_file, 'w') do |f|
+    write_stdout_and_file(f, "Sprint Statistics for: #{date_range.to_s}")
 
-    empty_repos = repos_to_track.delete_if do |fq_repo_name|
-      process_repo(fq_repo_name, milestone, milestone_range, f)
+    empty_repos = repos_to_track.dup.delete_if do |fq_repo_name|
+      process_repo(fq_repo_name, date_range, f)
     end
-    puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"
+
+    puts "\nPRs found in:\n#{(repos_to_track - empty_repos).join("\n")}"
+
+    puts "\nEmpty Repos: #{empty_repos.count}"
+    # puts "Repo List: #{empty_repos.join(", ")}"
+
+    puts "Output available in: #{output_file}"
   end
 end
 
@@ -128,7 +182,6 @@ def completed_in
   puts "Completed in #{Time.now - start_time}"
 end
 
-milestone = Milestone.prompt_for_milestone
-exit if milestone.nil?
-
-completed_in { process_repos(milestone) }
+prereq_check
+date_range = DateRange.prompt_for_range(@config)
+completed_in { process_repos(date_range) }
