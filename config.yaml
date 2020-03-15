@@ -1,6 +1,5 @@
 ---
 :github_organization: ManageIQ
-:milestone_reference_repo: ManageIQ/manageiq
 :additional_repos: []
 :excluded_repos:
 - ManageIQ/integration_tests
