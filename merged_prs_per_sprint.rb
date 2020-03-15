@@ -5,6 +5,7 @@ require 'optimist'
 
 class MergedPrs
   attr_reader :config, :config_file, :output_file, :sprint
+  REPO_LJUST_LENGTH = 45
 
   def initialize(opts)
     @sprint = Sprint.prompt_for_sprint(3)
@@ -40,12 +41,16 @@ class MergedPrs
     @label_filters ||= @config.dig(:filters, :labels) || []
   end
 
-  def repos_to_track
-    organization = @config[:github_organization]
-    puts "Loading Organization: #{organization}"
+  def additional_repos
+    Array(@config[:additional_repos])
+  end
 
-    repos = stats.project_names_from_org(organization).to_a + @config[:additional_repos].to_a
-    repos - @config[:excluded_repos].to_a
+  def excluded_repo?(repo_name)
+    @config[:excluded_repos].include?(repo_name)
+  end
+
+  def excluded_repos
+    @excluded_repos ||= Array(@config[:excluded_repos])
   end
 
   def filters_match?(pr)
@@ -76,21 +81,33 @@ class MergedPrs
     "[#{pr.title} (##{pr.number})](#{pr.pull_request.html_url})"
   end
 
-  def milestone_prs(milestone, sprint_range, fq_repo_name)
+  def repo_sprint_prs(fq_repo_name)
     params = {:state => "closed", :sort => 'closed_at', :direction => 'desc'}
 
-    prs =
-      if milestone
-        stats.pull_requests(fq_repo_name, params.merge(:milestone => milestone.number))
-      else
-        since = sprint_range.begin.in_time_zone("US/Pacific").iso8601
-        stats.pull_requests(fq_repo_name, params.merge(:since => since)).select do |pr|
-          sprint_range.include?(pr.updated_at.to_date)
-        end
-      end
+    since = @sprint.range.begin.in_time_zone("US/Pacific").iso8601
+    prs = stats.pull_requests(fq_repo_name, params.merge(:since => since)).select do |pr|
+      @sprint.range.include?(pr.updated_at.to_date)
+    end
 
     prs.each { |pr| pr.label_names = pr.labels.collect(&:name) }
     prs
+  end
+
+  def fetch_org_prs
+    Hash.new { |h, k| h[k] = [] }.tap do |repos|
+      result = stats.client.search_issues("is:public user:#{@config[:github_organization]} " \
+                                          "merged:#{@sprint.range.begin.iso8601}..#{sprint.range.end.iso8601}")
+
+      puts "Total merged PRs for Organization #{@config[:github_organization]}: #{result.total_count} (unfiltered count)"
+
+      result.items.each do |pr|
+        repo_name = File.join(pr.repository_url.split(File::SEPARATOR).last(2))
+        next if excluded_repo?(repo_name)
+
+        pr.label_names = pr.labels.collect(&:name)
+        repos[repo_name] << pr
+      end
+    end
   end
 
   def write_stdout_and_file(f, line)
@@ -98,64 +115,73 @@ class MergedPrs
     f.puts line + "<br/>"
   end
 
-  def prs_for_milestone(milestone, sprint_range, fq_repo_name)
-    all_prs = milestone_prs(milestone, sprint_range, fq_repo_name)
-
+  def fetch_repo_prs(fq_repo_name, prs)
     if filter_repo_prs?(fq_repo_name)
-      prs = all_prs.select { |pr| filters_match?(pr) }
-    else
-      prs = all_prs
+      prs = prs.select { |pr| filters_match?(pr) }
     end
 
-    [prs, all_prs.count]
+    prs
   end
 
   def fetch_repo_prs_parallel(repos)
+    return [] if repos.empty?
+
     require 'parallel'
 
     puts "Fetching..."
     repo_prs = Parallel.map(repos, :in_threads => 8) do |fq_repo_name|
       puts "  #{fq_repo_name}"
-      [fq_repo_name, fetch_repo_prs(fq_repo_name)]
+      prs = repo_sprint_prs(fq_repo_name)
+      [fq_repo_name, prs]
     end
     puts
 
     repo_prs
   end
 
-  def fetch_repo_prs(fq_repo_name)
-    # Each repo has a different milestone number, so we have to lookup by name
-    milestone = stats.client.milestones(fq_repo_name, :state => "all").detect { |m| m[:title] == @sprint.title }
-
-    prs_for_milestone(milestone, @sprint.range, fq_repo_name)
-  end
-
   def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
     f.puts('')
-    write_stdout_and_file(f, "Repo: #{fq_repo_name}  PR (Selected/Total): (#{prs.count}/#{total_pr_count})")
+    write_stdout_and_file(f, "#{fq_repo_name.ljust(REPO_LJUST_LENGTH)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}")
     prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
   end
 
   def process_repos
     File.open(@output_file, 'w') do |f|
       puts "\n"
+
+      repo_prs = []
+      fetch_org_prs.each do |fq_repo_name, prs|
+        repo_prs << [fq_repo_name, [fetch_repo_prs(fq_repo_name, prs), prs.count]]
+      end
+
+      fetch_repo_prs_parallel(additional_repos).each do |fq_repo_name, prs|
+        repo_prs << [fq_repo_name, [fetch_repo_prs(fq_repo_name, prs), prs.count]]
+      end
+
       write_stdout_and_file(f, "Sprint Statistics for: \"#{@sprint.title}\"  (#{@sprint.range})")
       write_stdout_and_file(f, "")
-
-      repo_prs = fetch_repo_prs_parallel(repos_to_track)
+      write_stdout_and_file(f, "#{'Name'.ljust(REPO_LJUST_LENGTH)}\t PRs: (Selected/Total)")
 
       empty_repos = []
       repo_prs.each do |fq_repo_name, (prs, total_pr_count)|
         if prs.empty?
-          empty_repos << fq_repo_name
+          empty_repos << [fq_repo_name, total_pr_count]
         else
           write_repo_prs(fq_repo_name, prs, total_pr_count, f)
         end
       end
 
-      puts
-      puts "Empty Repos: #{empty_repos.count}\nRepo List: #{empty_repos.join(", ")}"
+      print_empty_repos(empty_repos)
     end
+    puts "\nOutput written to: #{@output_file}"
+  end
+
+  def print_empty_repos(repos)
+    puts
+    puts "Empty Repos: #{repos.count}    name(unfiltered PR count)"
+    return if repos.empty?
+
+    puts repos.sort_by { |a| -a.last }.collect { |name, total| "#{name}(#{total})" }.join("  ")
   end
 
   def self.parse(args)
@@ -188,7 +214,6 @@ end
 def completed_in
   start_time = Time.now
   yield
-  puts
   puts "Completed in #{Time.now - start_time}"
 end
 
