@@ -2,13 +2,12 @@ require "net/http"
 require "json"
 require "active_support/core_ext"
 
-CODECLIMATE_API_TOKEN = "your CodeClimage API token"
-CODECLIMATE_URL       = "https://api.codeclimate.com"
+DEFAULT_CODECLIMATE_URL = "https://api.codeclimate.com"
 
 class CodeClimateRequest
   def initialize
-    @base_uri  = ENV["CODECLIMATE_URL"]       || CODECLIMATE_URL
-    @api_token = ENV["CODECLIMATE_API_TOKEN"] || CODECLIMATE_API_TOKEN
+    @base_uri  = ENV["CODECLIMATE_URL"] || DEFAULT_CODECLIMATE_URL
+    @api_token = ENV.fetch("CODECLIMATE_API_TOKEN")
   end
 
   def request(path)
