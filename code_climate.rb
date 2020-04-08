@@ -78,27 +78,16 @@ class CodeClimate
   end
 
   def issues(repo_id, snapshot_id)
-    result = []
-    page_number = 0
-    query = {
-      "page[size]"   => 100,
-      "page[number]" => page_number
-    }
-    
-    while true
-      page_number += 1
-      query["page[number]"] = page_number
-      path = "/v1/repos/#{repo_id}/snapshots/#{snapshot_id}/issues?#{query.to_query}"
-      response = CodeClimateRequest.new.request(path)
-      files = response_to_data(response, path)
-      break if files.nil?
-      result += files
-    end
-    
-    result
+    multi_paged_query("/v1/repos/#{repo_id}/snapshots/#{snapshot_id}/issues")
   end
 
   def files(repo_id, snapshot_id)
+    multi_paged_query("/v1/repos/#{repo_id}/snapshots/#{snapshot_id}/files")
+  end
+
+  private
+
+  def multi_paged_query(base_path)
     result = []
     page_number = 0
     query = {
@@ -109,17 +98,15 @@ class CodeClimate
     while true
       page_number += 1
       query["page[number]"] = page_number
-      path = "/v1/repos/#{repo_id}/snapshots/#{snapshot_id}/files?#{query.to_query}"
+      path = "#{base_path}?#{query.to_query}"
       response = CodeClimateRequest.new.request(path)
-      files = response_to_data(response, path)
-      break if files.nil?
-      result += files
+      data = response_to_data(response, path)
+      break if data.nil?
+      result += data
     end
     
     result
   end
-
-  private
 
   def response_to_data(response, path = nil)
     data = nil
