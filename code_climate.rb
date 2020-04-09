@@ -1,6 +1,7 @@
 require "net/http"
 require "json"
 require "active_support/core_ext"
+require "more_core_extensions/core_ext/array/element_counts"
 
 DEFAULT_CODECLIMATE_URL = "https://api.codeclimate.com"
 
@@ -37,12 +38,8 @@ class CodeClimate
     files    = cc.files(repo_id, snapshot_id)
     issues   = cc.issues(repo_id, snapshot_id)
 
-    issue_counts = {}
-    issue_counts['total']       = issues.length
-    issue_counts['complexity']  = issues.count { |issue| issue["attributes"]["categories"].include?("Complexity") }
-    issue_counts['duplication'] = issues.count { |issue| issue["attributes"]["categories"].include?("Duplication") }
-    issue_counts['style']       = issues.count { |issue| issue["attributes"]["categories"].include?("Style") }
-    issue_counts['bug_risk']    = issues.count { |issue| issue["attributes"]["categories"].include?("Bug Risk") }
+    issue_counts = issues.flat_map { |issue| issue["attributes"]["categories"] }.element_counts
+    issue_counts['Total'] = issues.length
 
     {
       'files'  => files.length,
