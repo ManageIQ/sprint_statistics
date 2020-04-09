@@ -35,17 +35,21 @@ class CodeClimate
     snapshot_id = repo["relationships"]["latest_default_branch_snapshot"]["data"]["id"]
 
     snapshot = cc.snapshot(repo_id, snapshot_id)
+    coverage = cc.coverage(repo_id)
     files    = cc.files(repo_id, snapshot_id)
     issues   = cc.issues(repo_id, snapshot_id)
+
+    covered_percentage = coverage.nil? ? "NA" : coverage['attributes']['covered_percent']
 
     issue_counts = issues.flat_map { |issue| issue["attributes"]["categories"] }.element_counts
     issue_counts['Total'] = issues.length
 
     {
-      'files'  => files.length,
-      'loc'    => snapshot['attributes']['lines_of_code'],
-      'issues' => issue_counts,
-      'rating' => snapshot['attributes']['ratings'].first['letter']
+      'files'    => files.length,
+      'loc'      => snapshot['attributes']['lines_of_code'],
+      'issues'   => issue_counts,
+      'coverage' => covered_percentage,
+      'rating'   => snapshot['attributes']['ratings'].first['letter']
     }
   end
 
@@ -80,6 +84,12 @@ class CodeClimate
 
   def files(repo_id, snapshot_id)
     multi_paged_query("/v1/repos/#{repo_id}/snapshots/#{snapshot_id}/files")
+  end
+
+  def coverage(repo_id)
+    path = "/v1/repos/#{repo_id}/test_reports"
+    response = CodeClimateRequest.new.request(path)
+    response_to_data(response, path)&.first
   end
 
   private
