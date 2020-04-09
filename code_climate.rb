@@ -152,7 +152,9 @@ ALL_REPO_NAMES = [
 
 repo_names = ARGV[0].nil? ? ALL_REPO_NAMES : [ARGV[0]]
 
+STDOUT.puts "REPOSITORY,FILES,LINES OF CODE,RATING,TOTAL ISSUES,COMPLEXITY ISSUES,DUPLICATION ISSUES,BUG RISK ISSUES,STYLE ISSUES"
 repo_names.each do |repo_name|
   stats = CodeClimate.repo_stats(repo_name)
-  puts "Stats for repo #{repo_name}: #{stats.inspect}"
+  next if stats == {}
+  STDOUT.puts "#{repo_name},#{stats['files']},#{stats['loc']},#{stats['rating']},#{stats['issues']['Total']},#{stats['issues']['Complexity']},#{stats['issues']['Duplication']},#{stats['issues']['Bug Risk']},#{stats['issues']['Style']}"
 end
