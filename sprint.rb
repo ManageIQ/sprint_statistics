@@ -10,7 +10,7 @@ class Sprint
 
     sprints.each_with_index { |s, i| puts "#{i + 1} : #{s.title}" }
     puts "#{sprints.size + 1} : Exit"
-    print "\nChoose Milestone: [Default: #{default_index}] "
+    print "\nChoose Sprint: [Default: #{default_index}] "
 
     answer = gets.chomp.to_i
     (answer.zero? ? default_index : answer) - 1
@@ -48,6 +48,19 @@ class Sprint
 
   def initialize(number, range)
     @number, @range = number, range
+  end
+
+  def before_range?(timestamp)
+    timestamp.to_date < range.begin
+  end
+
+  def after_range?(timestamp)
+    timestamp.to_date > range.end
+  end
+
+  def in_range?(timestamp)
+    return false if timestamp.nil?
+    range.include?(timestamp.to_date)
   end
 
   def date

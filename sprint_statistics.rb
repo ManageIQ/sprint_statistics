@@ -28,7 +28,7 @@ class SprintStatistics
   end
 
   def default_repos
-    @default_repos ||= stats.project_names_from_org("ManageIQ").to_a + ["Ansible/ansible_tower_client_ruby"]
+    @default_repos ||= project_names_from_org("ManageIQ").to_a + ["Ansible/ansible_tower_client_ruby"]
   end
 
   def client
