@@ -46,11 +46,19 @@ class MergedPrs
   end
 
   def excluded_repo?(repo_name)
-    @config[:excluded_repos].include?(repo_name)
+    return true if excluded_repos.include?(repo_name)
+
+    return !included_repos.include?(repo_name) if included_repos.present?
+
+    false
   end
 
   def excluded_repos
     @excluded_repos ||= Array(@config[:excluded_repos])
+  end
+
+  def included_repos
+    @included_repos ||= Array(@config[:included_repos])
   end
 
   def filters_match?(pr)

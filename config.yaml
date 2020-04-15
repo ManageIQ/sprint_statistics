@@ -1,6 +1,7 @@
 ---
 :github_organization: ManageIQ
 :additional_repos: []
+:included_repos: []
 :excluded_repos:
 - ManageIQ/integration_tests
 - ManageIQ/manageiq-appliance-dev-setup
