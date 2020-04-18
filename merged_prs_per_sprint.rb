@@ -5,7 +5,7 @@ require 'optimist'
 
 class MergedPrs
   attr_reader :config, :config_file, :output_file, :sprint
-  REPO_LJUST_LENGTH = 45
+  REPO_LJUST_LENGTH = 50
 
   def initialize(opts)
     @sprint = Sprint.prompt_for_sprint(3)
@@ -103,8 +103,7 @@ class MergedPrs
 
   def fetch_org_prs
     Hash.new { |h, k| h[k] = [] }.tap do |repos|
-      result = stats.client.search_issues("is:public user:#{@config[:github_organization]} " \
-                                          "merged:#{@sprint.range.begin.iso8601}..#{sprint.range.end.iso8601}")
+      result = stats.client.search_issues("is:public user:#{@config[:github_organization]} merged:#{sprint_range}")
 
       puts "Total merged PRs for Organization #{@config[:github_organization]}: #{result.total_count} (unfiltered count)"
 
@@ -116,6 +115,10 @@ class MergedPrs
         repos[repo_name] << pr
       end
     end
+  end
+
+  def sprint_range
+    "#{@sprint.range.begin.iso8601}..#{sprint.range.end.iso8601}"
   end
 
   def write_stdout_and_file(f, line)
@@ -149,8 +152,15 @@ class MergedPrs
 
   def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
     f.puts('')
-    write_stdout_and_file(f, "#{fq_repo_name.ljust(REPO_LJUST_LENGTH)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}")
+
+    puts "#{fq_repo_name.ljust(REPO_LJUST_LENGTH)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}"
+    f.puts "## #{repo_url_markdown(fq_repo_name)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}<br/>"
+
     prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
+  end
+
+  def repo_url_markdown(fq_repo_name)
+    "[#{fq_repo_name}](https://github.com/#{fq_repo_name}/pulls?q=merged%3A#{sprint_range})"
   end
 
   def process_repos
@@ -171,7 +181,7 @@ class MergedPrs
       write_stdout_and_file(f, "#{'Name'.ljust(REPO_LJUST_LENGTH)}\t PRs: (Selected/Total)")
 
       empty_repos = []
-      repo_prs.each do |fq_repo_name, (prs, total_pr_count)|
+      repo_prs.sort_by(&:first).each do |fq_repo_name, (prs, total_pr_count)|
         if prs.empty?
           empty_repos << [fq_repo_name, total_pr_count]
         else
