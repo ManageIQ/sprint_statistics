@@ -8,7 +8,7 @@ class MergedPrs
   REPO_LJUST_LENGTH = 50
 
   def initialize(opts)
-    @sprint = Sprint.prompt_for_sprint(3)
+    @sprint = sprint_boundaries(opts)
     exit if @sprint.nil?
 
     @config_file = opts[:config_file]
@@ -219,6 +219,27 @@ class MergedPrs
           :default  => nil,
           :type     => :string,
           :required => false
+
+      opt :start_date,
+          "Query Start Date (format: YYYY-MM-DD)",
+          :short    => "s",
+          :default  => nil,
+          :type     => :string,
+          :required => false
+
+      opt :end_date,
+          "Query End Date   (format: YYYY-MM-DD)",
+          :short    => "e",
+          :default  => nil,
+          :type     => :string,
+          :required => false
+
+      opt :sprint_length,
+          "Sprint Length (weeks)",
+          :short    => "l",
+          :default  => 2,
+          :type     => :integer,
+          :required => false
     end
 
     opts
@@ -226,6 +247,20 @@ class MergedPrs
 
   def self.run(args)
     new(parse(args)).process_repos
+  end
+end
+
+def sprint_boundaries(opts)
+  if opts[:start_date] || opts[:end_date]
+    start_date = Date.parse(opts[:start_date]) if opts[:start_date]
+    end_date   = Date.parse(opts[:end_date])   if opts[:end_date]
+
+    # If only one date is provided set the other based on the sprint length
+    start_date = end_date - opts[:sprint_length].weeks   unless start_date
+    end_date   = start_date + opts[:sprint_length].weeks unless end_date
+    Sprint.new("NA", start_date..end_date)
+  else
+    Sprint.prompt_for_sprint(3)
   end
 end
 
