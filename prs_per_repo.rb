@@ -8,13 +8,26 @@ class PrsPerRepo
   attr_reader :config, :config_file, :output_file, :sprint
 
   def initialize(opts)
-    @sprint = Sprint.prompt_for_sprint(3)
-    exit if @sprint.nil?
+    @sprint = find_sprint(opts[:sprint])
+    if @sprint.nil?
+      STDERR.puts "invalid sprint specified"
+      exit
+    end
 
     @config_file = opts[:config_file]
     @config = YAML.load_file(@config_file)
 
     @output_file = opts[:output_file] || "prs_per_repo.csv"
+  end
+
+  def find_sprint(sprint = nil)
+    if sprint.nil?
+      Sprint.prompt_for_sprint(3)
+    elsif sprint == 'last'
+      Sprint.last_completed
+    else
+      Sprint.create_by_sprint_number(sprint.to_i)
+    end      
   end
 
   def github_api_token
@@ -89,6 +102,13 @@ class PrsPerRepo
   def self.parse(args)
     opts = Optimist.options(args) do
       banner "Usage: ruby #{$PROGRAM_NAME} [opts]\n"
+
+      opt :sprint,
+          "Sprint",
+          :short    => "s",
+          :default  => nil,
+          :type     => :string,
+          :required => false
 
       opt :config_file,
           "Config file name",

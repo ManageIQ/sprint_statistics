@@ -21,6 +21,17 @@ class Sprint
     sprints(as_of: nil).slice_after { |s| s.date >= Date.today }.first.last(count)
   end
 
+  def self.last_completed
+    Sprint.recent_sprints(2).first
+  end
+
+  def self.create_by_sprint_number(sprint_number)
+    SprintBoundaryIterator.new.each do |number, range|
+      return new(number, range) if number == sprint_number
+    end
+    nil
+  end
+
   def self.sprints(as_of: Date.today)
     as_of ||= SprintBoundaryIterator.start_range.end
 
