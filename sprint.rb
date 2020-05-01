@@ -1,3 +1,4 @@
+require_relative 'sprint_boundary_iterator'
 class Sprint
   def self.prompt_for_sprint(count)
     sprints = recent_sprints(count).reverse
@@ -21,26 +22,10 @@ class Sprint
   end
 
   def self.sprints(as_of: Date.today)
-    require "active_support/core_ext/numeric/time"
-    # The first date when we started doing this cadence
-    number = 76
-    date   = Date.parse("Jan 1, 2018")
-    range  = Date.parse("Dec 12, 2018")..date
+    as_of ||= SprintBoundaryIterator.start_range.end
 
-    as_of ||= date
-
-    Enumerator.new do |y|
-      loop do
-        y << new(number, range) if date >= as_of
-
-        last_date = date
-        number += 1
-        date += 2.weeks
-        while (date.month == 12 && (22..31).cover?(date.day)) || (date.month == 1 && (1..4).cover?(date.day))
-          date += 1.weeks
-        end
-        range = (last_date + 1.day)..date
-      end
+    SprintBoundaryIterator.new.collect do |number, range|
+      new(number, range) if range.end >= as_of
     end
   end
 
