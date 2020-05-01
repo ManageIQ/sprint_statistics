@@ -29,13 +29,16 @@ class PrsPerRepo
     stats.client.pull_request(repo, number).merged?
   end
 
-  def pr_issues(repo)
+  def prs_since_sprint_start(repo)
     since = @sprint.range.begin.in_time_zone("US/Pacific").iso8601
     stats.pull_requests(repo, :state => :all, :since => since)
   end
 
-  LABELS  = ["bug", "enhancement", "developer", "documentation", "performance", "refactoring", "technical debt", "test"]
+  def open_prs(repo)
+    stats.pull_requests(repo, :state => :open)
+  end
 
+  LABELS  = ["bug", "enhancement", "developer", "documentation", "performance", "refactoring", "technical debt", "test"]
 
   def process_repo(repo)
     puts "Collecting pull_requests for: #{repo}"
@@ -43,21 +46,23 @@ class PrsPerRepo
     closed_merged = []
     closed_unmerged = []
     labels_arr = []
-    prs_remaining_open = 0
-    pr_issues(repo).each do |i|
-      next if @sprint.after_range?(i.created_at)  # skip PRs opened after the end of the sprint
+    prs_remaining_open = open_prs(repo).length
 
-      opened += 1 if @sprint.in_range?(i.created_at)
+    prs_since_sprint_start(repo).each do |pr|
+      next if @sprint.after_range?(pr.created_at)  # skip PRs opened after the end of the sprint
 
-      if @sprint.in_range?(i.closed_at)
-        if merged?(repo, i.number)
-          closed_merged << i
-          i.labels.each { |label| labels_arr << label.name }
+      opened += 1 if @sprint.in_range?(pr.created_at)
+
+      if @sprint.in_range?(pr.closed_at)
+        if merged?(repo, pr.number)
+          closed_merged << pr
+          pr.labels.each { |label| labels_arr << label.name }
         else
-          closed_unmerged << i
+          closed_unmerged << pr
         end
       else
-        prs_remaining_open += 1 if i.closed_at.nil? || @sprint.after_range?(i.closed_at)
+        # Add to remaining open any PRs that were closed AFTER the sprint ended
+        prs_remaining_open += 1 if pr.closed_at && @sprint.after_range?(pr.closed_at)
       end
     end
     merged_labels_hash = labels_arr.element_counts
