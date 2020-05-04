@@ -18,6 +18,7 @@ class PrsPerRepo
     @config = YAML.load_file(@config_file)
 
     @output_file = opts[:output_file] || "prs_per_repo.csv"
+    @github_org = "ManageIQ"
   end
 
   def find_sprint(sprint = nil)
@@ -38,54 +39,96 @@ class PrsPerRepo
     @stats ||= SprintStatistics.new(github_api_token)
   end
 
-  def merged?(repo, number)
-    stats.client.pull_request(repo, number).merged?
+  def repo_in_org?(repo, org)
+    repo.split('/').first == org
   end
 
-  def prs_since_sprint_start(repo)
-    since = @sprint.range.begin.in_time_zone("US/Pacific").iso8601
-    stats.pull_requests(repo, :state => :all, :since => since)
+  def execute_query(query)
+    results = stats.client.search_issues(query)
+puts "github query=#{query.inspect} returned #{results.total_count} items"
+#puts "query results=#{results.inspect}"
+    results.items
   end
 
-  def open_prs(repo)
-    stats.pull_requests(repo, :state => :open)
+  def cached_execute_query(query)
+    @query_cache        ||= {}
+    @query_cache[query] ||= execute_query(query)
+    @query_cache[query]
+  end
+
+  def execute_query_in_repo_or_org(repo, query)
+    if repo_in_org?(repo, @github_org)
+      results = cached_execute_query "org:#{@github_org} #{query}"
+      results.select { |pr| pr.repository_url.end_with?(repo) }
+    else
+      cached_execute_query "repo:#{repo} #{query}"
+    end
+  end
+
+  def remaining_open(repo)
+    execute_query_in_repo_or_org(repo, "type:pr state:open created:<=#{@sprint.ended_iso8601}")
+  end
+
+  def closed_after_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr state:closed created:<=#{@sprint.ended_iso8601} closed:>#{@sprint.ended_iso8601}")
+  end
+
+  def closed_during_sprint_search_query
+    "type:pr state:closed created:<=#{@sprint.ended_iso8601} closed:#{@sprint.range_iso8601}"
+  end
+
+  def closed_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, closed_during_sprint_search_query)
+  end
+
+  def closed_merged_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "is:merged #{closed_during_sprint_search_query}")
+  end
+
+  def closed_unmerged_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "is:unmerged #{closed_during_sprint_search_query}")
+  end
+
+  def created_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr created:#{@sprint.range_iso8601}")
   end
 
   LABELS  = ["bug", "enhancement", "developer", "documentation", "performance", "refactoring", "technical debt", "test"]
 
   def process_repo(repo)
-    puts "Collecting pull_requests for: #{repo}"
-    opened = 0
-    closed_merged = []
-    closed_unmerged = []
-    labels_arr = []
-    prs_remaining_open = open_prs(repo).length
+    puts "Analyzing Repo: #{repo}"
 
-    prs_since_sprint_start(repo).each do |pr|
-      next if @sprint.after_range?(pr.created_at)  # skip PRs opened after the end of the sprint
+    stats = {}
+    stats[:prs]    = {}
+    stats[:counts] = {}
 
-      opened += 1 if @sprint.in_range?(pr.created_at)
+    opened                  = created_during_sprint(repo)
+    stats[:prs][:opened]    = opened.collect(&:number).sort
+    stats[:counts][:opened] = opened.length
 
-      if @sprint.in_range?(pr.closed_at)
-        if merged?(repo, pr.number)
-          closed_merged << pr
-          pr.labels.each { |label| labels_arr << label.name }
-        else
-          closed_unmerged << pr
-        end
-      else
-        # Add to remaining open any PRs that were closed AFTER the sprint ended
-        prs_remaining_open += 1 if pr.closed_at && @sprint.after_range?(pr.closed_at)
-      end
+    still_open = remaining_open(repo) + closed_after_sprint(repo)
+    stats[:prs][:still_open]    = still_open.collect(&:number).sort
+    stats[:counts][:still_open] = still_open.length
+
+    closed_merged   = closed_merged_during_sprint(repo)
+    closed_unmerged = closed_unmerged_during_sprint(repo)
+    labels_array    = []
+    closed_merged.each do |pr|
+      pr.labels.each { |label| labels_array << label.name }
     end
-    merged_labels_hash = labels_arr.element_counts
+
+    merged_labels_hash = labels_array.element_counts
     labels_string      = merged_labels_hash.values_at(*LABELS).collect(&:to_i).join(",")
 
-    puts "  Closed/Unmerged: #{closed_unmerged.collect(&:html_url).inspect}"
-    puts "  Closed/Merged: #{closed_merged.collect(&:html_url).inspect}"
-    puts "  Closed/Merged Labels: #{merged_labels_hash.inspect}"
+    stats[:prs][:closed_unmerged]    = closed_unmerged.collect(&:number).sort
+    stats[:counts][:closed_unmerged] = closed_unmerged.length
+    stats[:prs][:closed_merged]      = closed_merged.collect(&:number).sort
+    stats[:counts][:closed_merged]   = closed_merged.length
+    stats[:merged_labels]   = merged_labels_hash
+    puts "#{repo} stats: #{stats.inspect}"
+    puts "Analyzing Repo: #{repo} completed"
 
-    return "#{repo},#{opened},#{closed_merged.length},#{labels_string},#{prs_remaining_open}"
+    return "#{repo},#{stats[:counts][:opened]},#{stats[:counts][:closed_merged]},#{labels_string},#{stats[:counts][:still_open]}"
   end
 
   def process_repos

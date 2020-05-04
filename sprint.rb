@@ -59,6 +59,18 @@ class Sprint
     range.include?(timestamp.to_date)
   end
 
+  def began_iso8601
+    range.first.iso8601
+  end
+
+  def ended_iso8601
+    range.end.iso8601
+  end
+
+  def range_iso8601
+    "#{began_iso8601}..#{ended_iso8601}"
+  end
+
   def date
     range.end
   end
