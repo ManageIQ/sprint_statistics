@@ -13,7 +13,10 @@ class PrsPerRepo
     @config = YAML.load_file(config_file)
 
     @output_file = opts[:output_file] || "prs_per_repo.csv"
-    @github_org = "ManageIQ"
+
+    repo_given  = opts[:repo_slug_given] ? opts[:repo_slug] : config[:repo_slug]
+    @repos      = repo_given ? Array(repo_given) : stats.default_repos.sort
+    @github_org = repo_given ? "" : "ManageIQ"
     @sprint     = get_sprint(opts)
   end
 
@@ -131,7 +134,7 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
   end
 
   def process_repos
-    results = stats.default_repos.sort.collect do |repo|
+    results = @repos.collect do |repo|
       process_repo(repo)
     end
 
@@ -148,6 +151,13 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
       opt :sprint,
           "Sprint",
           :short    => "s",
+          :default  => nil,
+          :type     => :string,
+          :required => false
+
+      opt :repo_slug,
+          "Repo Slug Name (e.g. ManageIQ/manageiq)",
+          :short    => "r",
           :default  => nil,
           :type     => :string,
           :required => false
