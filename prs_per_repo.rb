@@ -5,17 +5,12 @@ require 'yaml'
 require 'optimist'
 
 class PrsPerRepo
-  attr_reader :config, :config_file, :output_file, :sprint
+  attr_reader :opts, :config, :output_file, :sprint
 
   def initialize(opts)
-    @sprint = find_sprint(opts[:sprint])
-    if @sprint.nil?
-      STDERR.puts "invalid sprint specified"
-      exit
-    end
-
-    @config_file = opts[:config_file]
-    @config = YAML.load_file(@config_file)
+    @opts = opts
+    config_file = opts[:config_file]
+    @config = YAML.load_file(config_file)
 
     @output_file = opts[:output_file] || "prs_per_repo.csv"
     @github_org = "ManageIQ"
