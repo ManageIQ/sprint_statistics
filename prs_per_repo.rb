@@ -14,16 +14,20 @@ class PrsPerRepo
 
     @output_file = opts[:output_file] || "prs_per_repo.csv"
     @github_org = "ManageIQ"
+    @sprint     = get_sprint(opts)
   end
 
-  def find_sprint(sprint = nil)
+  def get_sprint(opts)
+    sprint_given = opts[:sprint_given] ? opts[:sprint] : config[:sprint]
+
+    return Sprint.prompt_for_sprint(3) unless sprint_given
+
+    sprint = (sprint_given == 'last') ? Sprint.last_completed : Sprint.create_by_sprint_number(sprint_given.to_i)
     if sprint.nil?
-      Sprint.prompt_for_sprint(3)
-    elsif sprint == 'last'
-      Sprint.last_completed
-    else
-      Sprint.create_by_sprint_number(sprint.to_i)
-    end      
+      STDERR.puts "invalid sprint <#{sprint_given}> specified"
+      exit
+    end
+    sprint
   end
 
   def github_api_token
