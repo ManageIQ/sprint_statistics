@@ -5,19 +5,22 @@ require 'yaml'
 require 'optimist'
 
 class PrsPerRepo
-  attr_reader :opts, :config, :output_file, :sprint
+  attr_reader :opts, :config, :output_type, :sprint
 
   def initialize(opts)
     @opts = opts
     config_file = opts[:config_file]
     @config = YAML.load_file(config_file)
 
-    @output_file = opts[:output_file] || "prs_per_repo.csv"
-
+    @output_type = opts[:output_type]
     repo_given  = opts[:repo_slug_given] ? opts[:repo_slug] : config[:repo_slug]
     @repos      = repo_given ? Array(repo_given) : stats.default_repos.sort
     @github_org = repo_given ? "" : "ManageIQ"
     @sprint     = get_sprint(opts)
+  end
+
+  def output_file
+    @output_file ||= opts[:output_file] || "sprint_#{sprint.number}.#{output_type}"
   end
 
   def get_sprint(opts)
@@ -101,16 +104,18 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
     puts "Analyzing Repo: #{repo}"
 
     stats = {}
-    stats[:prs]    = {}
-    stats[:counts] = {}
+    stats['repo_slug'] = repo
+    stats['repo_url']  = "http://github.com/#{repo}"
+    stats['prs']    = {}
+    stats['counts'] = {}
 
-    opened                  = created_during_sprint(repo)
-    stats[:prs][:opened]    = opened.collect(&:number).sort
-    stats[:counts][:opened] = opened.length
+    opened                    = created_during_sprint(repo)
+    stats['prs']['opened']    = opened.collect(&:number).sort
+    stats['counts']['opened'] = opened.length
 
     still_open = remaining_open(repo) + closed_after_sprint(repo)
-    stats[:prs][:still_open]    = still_open.collect(&:number).sort
-    stats[:counts][:still_open] = still_open.length
+    stats['prs']['still_open']    = still_open.collect(&:number).sort
+    stats['counts']['still_open'] = still_open.length
 
     closed_merged   = closed_merged_during_sprint(repo)
     closed_unmerged = closed_unmerged_during_sprint(repo)
@@ -122,15 +127,19 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
     merged_labels_hash = labels_array.element_counts
     labels_string      = merged_labels_hash.values_at(*LABELS).collect(&:to_i).join(",")
 
-    stats[:prs][:closed_unmerged]    = closed_unmerged.collect(&:number).sort
-    stats[:counts][:closed_unmerged] = closed_unmerged.length
-    stats[:prs][:closed_merged]      = closed_merged.collect(&:number).sort
-    stats[:counts][:closed_merged]   = closed_merged.length
-    stats[:merged_labels]   = merged_labels_hash
+    stats['prs']['closed_unmerged']    = closed_unmerged.collect(&:number).sort
+    stats['counts']['closed_unmerged'] = closed_unmerged.length
+    stats['prs']['closed_merged']      = closed_merged.collect(&:number).sort
+    stats['counts']['closed_merged']   = closed_merged.length
+    stats['merged_labels']             = merged_labels_hash
     puts "#{repo} stats: #{stats.inspect}"
     puts "Analyzing Repo: #{repo} completed"
 
-    return "#{repo},#{stats[:counts][:opened]},#{stats[:counts][:closed_merged]},#{labels_string},#{stats[:counts][:still_open]}"
+    if output_type == 'csv'
+      return "#{repo},#{stats['counts']['opened']},#{stats['counts']['closed_merged']},#{labels_string},#{stats['counts']['still_open']}"
+    else
+      return stats
+    end
   end
 
   def process_repos
@@ -139,8 +148,12 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
     end
 
     File.open(output_file, 'w') do |f|
-      f.puts "Pull Requests from: #{sprint.range.first} to: #{sprint.range.last}.  repo,#opened,#merged,#{LABELS.collect { |l| "closed_#{l}" }.join(",")},#remaining_open"
-      results.each { |line| f.puts(line) }
+      if output_type == 'yaml'
+        f.write(results.to_yaml)
+      else
+        f.puts "repo,opened,merged,#{LABELS.collect { |l| "closed_#{l}" }.join(",")},remaining_open"
+        results.each { |line| f.puts(line) }
+      end
     end
   end
 
@@ -173,6 +186,13 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
           "Output file name",
           :short    => "o",
           :default  => nil,
+          :type     => :string,
+          :required => false
+
+      opt :output_type,
+          "Output file type",
+          :short    => "t",
+          :default  => 'yaml',
           :type     => :string,
           :required => false
     end
