@@ -49,10 +49,17 @@ class PrsPerRepo
   end
 
   def execute_query(query)
-    results = stats.client.search_issues(query)
-puts "github query=#{query.inspect} returned #{results.total_count} items"
-#puts "query results=#{results.inspect}"
-    results.items
+    begin
+      results = stats.client.search_issues(query)
+      puts "GitHub query=#{query.inspect} returned #{results.total_count} items"
+      #puts "query results=#{results.inspect}"
+      results.items
+    rescue Octokit::TooManyRequests
+      retry_time = 5
+      puts "GitHub API rate limit exceeded.  Retrying in #{retry_time} seconds."
+      sleep retry_time
+      retry
+    end
   end
 
   def cached_execute_query(query)
@@ -70,35 +77,109 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
     end
   end
 
-  def remaining_open(repo)
-    execute_query_in_repo_or_org(repo, "type:pr state:open created:<=#{@sprint.ended_iso8601}")
+  def remaining_open_query
+    "state:open created:<=#{@sprint.ended_iso8601}"
   end
 
-  def closed_after_sprint(repo)
-    execute_query_in_repo_or_org(repo, "type:pr state:closed created:<=#{@sprint.ended_iso8601} closed:>#{@sprint.ended_iso8601}")
+  def prs_remaining_open(repo)
+    execute_query_in_repo_or_org(repo, "type:pr #{remaining_open_query}")
+  end
+
+  def issues_remaining_open(repo)
+    execute_query_in_repo_or_org(repo, "type:issue #{remaining_open_query}")
+  end
+
+  def closed_after_sprint_query
+    "state:closed created:<=#{@sprint.ended_iso8601} closed:>#{@sprint.ended_iso8601}"
+  end
+
+  def prs_closed_or_merged_after_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr #{closed_after_sprint_query}")
+  end
+
+  def issues_closed_after_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:issue #{closed_after_sprint_query}")
   end
 
   def closed_during_sprint_search_query
-    "type:pr state:closed created:<=#{@sprint.ended_iso8601} closed:#{@sprint.range_iso8601}"
+    "state:closed created:<=#{@sprint.ended_iso8601} closed:#{@sprint.range_iso8601}"
   end
 
-  def closed_during_sprint(repo)
-    execute_query_in_repo_or_org(repo, closed_during_sprint_search_query)
+  def prs_closed_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr #{closed_during_sprint_search_query}")
   end
 
-  def closed_merged_during_sprint(repo)
-    execute_query_in_repo_or_org(repo, "is:merged #{closed_during_sprint_search_query}")
+  def issues_closed_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:issue #{closed_during_sprint_search_query}")
   end
 
-  def closed_unmerged_during_sprint(repo)
-    execute_query_in_repo_or_org(repo, "is:unmerged #{closed_during_sprint_search_query}")
+  def prs_merged_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr is:merged #{closed_during_sprint_search_query}")
   end
 
-  def created_during_sprint(repo)
-    execute_query_in_repo_or_org(repo, "type:pr created:#{@sprint.range_iso8601}")
+  def prs_closed_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr is:unmerged #{closed_during_sprint_search_query}")
+  end
+
+  def created_during_sprint_query
+    "created:#{@sprint.range_iso8601}"
+  end
+
+  def prs_created_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:pr #{created_during_sprint_query}")
+  end
+
+  def issues_created_during_sprint(repo)
+    execute_query_in_repo_or_org(repo, "type:issue #{created_during_sprint_query}")
   end
 
   LABELS  = ["bug", "enhancement", "developer", "documentation", "performance", "refactoring", "technical debt", "test"]
+
+  def process_prs(repo)
+    result = {}
+    counts = {}
+
+    prs_created = prs_created_during_sprint(repo)
+    result['created'] = prs_created.collect(&:number).sort
+    counts['created'] = prs_created.length
+
+    prs_still_open = prs_remaining_open(repo) + prs_closed_or_merged_after_sprint(repo)
+    result['still_open'] = prs_still_open.collect(&:number).sort
+    counts['still_open'] = prs_still_open.length
+
+    prs_closed = prs_closed_during_sprint(repo)
+    result['closed'] = prs_closed.collect(&:number).sort
+    counts['closed'] = prs_closed.length
+
+    prs_merged   = prs_merged_during_sprint(repo)
+    result['merged'] = prs_merged.collect(&:number).sort
+    counts['merged'] = prs_merged.length
+
+    result['merged_labels'] = prs_merged.flat_map { |pr| pr.labels.collect(&:name) }.element_counts.sort.to_h
+
+    result['counts'] = counts
+    result
+  end
+
+  def process_issues(repo)
+    result = {}
+    counts = {}
+
+    issues_created = issues_created_during_sprint(repo)
+    result['created'] = issues_created.collect(&:number).sort
+    counts['created'] = issues_created.length
+
+    issues_still_open = issues_remaining_open(repo) + issues_closed_after_sprint(repo)
+    result['still_open'] = issues_still_open.collect(&:number).sort
+    counts['still_open'] = issues_still_open.length
+
+    issues_closed = issues_closed_during_sprint(repo)
+    result['closed'] = issues_closed.collect(&:number).sort
+    counts['closed'] = issues_closed.length
+
+    result['counts'] = counts
+    result
+  end
 
   def process_repo(repo)
     puts "Analyzing Repo: #{repo}"
@@ -106,37 +187,15 @@ puts "github query=#{query.inspect} returned #{results.total_count} items"
     stats = {}
     stats['repo_slug'] = repo
     stats['repo_url']  = "http://github.com/#{repo}"
-    stats['prs']    = {}
-    stats['counts'] = {}
+    stats['prs']       = process_prs(repo)
+    stats['issues']    = process_issues(repo)
 
-    opened                    = created_during_sprint(repo)
-    stats['prs']['opened']    = opened.collect(&:number).sort
-    stats['counts']['opened'] = opened.length
-
-    still_open = remaining_open(repo) + closed_after_sprint(repo)
-    stats['prs']['still_open']    = still_open.collect(&:number).sort
-    stats['counts']['still_open'] = still_open.length
-
-    closed_merged   = closed_merged_during_sprint(repo)
-    closed_unmerged = closed_unmerged_during_sprint(repo)
-    labels_array    = []
-    closed_merged.each do |pr|
-      pr.labels.each { |label| labels_array << label.name }
-    end
-
-    merged_labels_hash = labels_array.element_counts
-    labels_string      = merged_labels_hash.values_at(*LABELS).collect(&:to_i).join(",")
-
-    stats['prs']['closed_unmerged']    = closed_unmerged.collect(&:number).sort
-    stats['counts']['closed_unmerged'] = closed_unmerged.length
-    stats['prs']['closed_merged']      = closed_merged.collect(&:number).sort
-    stats['counts']['closed_merged']   = closed_merged.length
-    stats['merged_labels']             = merged_labels_hash
     puts "#{repo} stats: #{stats.inspect}"
     puts "Analyzing Repo: #{repo} completed"
 
     if output_type == 'csv'
-      return "#{repo},#{stats['counts']['opened']},#{stats['counts']['closed_merged']},#{labels_string},#{stats['counts']['still_open']}"
+      labels_string = stats['prs']['merged_labels'].values_at(*LABELS).collect(&:to_i).join(",")
+      return "#{repo},#{stats['prs']['counts']['created']},#{stats['prs']['counts']['merged']},#{labels_string},#{stats['prs']['counts']['still_open']}"
     else
       return stats
     end
