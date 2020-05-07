@@ -4,7 +4,7 @@ require 'more_core_extensions/core_ext/array/element_counts'
 require 'yaml'
 require 'optimist'
 
-class PrsPerRepo
+class GithubActivity
   attr_reader :opts, :config, :output_type, :sprint
 
   def initialize(opts)
@@ -270,5 +270,5 @@ def completed_in
   puts "Completed in #{Time.now - start_time}"
 end
 
-completed_in { PrsPerRepo.run(ARGV) }
+completed_in { GithubActivity.run(ARGV) }
 
