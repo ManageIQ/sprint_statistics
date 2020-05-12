@@ -19,6 +19,10 @@ class SprintBoundaryIterator
     end
   end
 
+  def self.start_range
+    self.new.first.last
+  end
+
   private
 
   # The first sprint when we started doing the cadence that compute_next_range works with properly
