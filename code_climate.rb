@@ -31,8 +31,11 @@ class CodeClimate
     repo = cc.repo_from_github_slug(repo_name)
     return {} if repo.nil?
     
-    repo_id     = repo["id"]
-    snapshot_id = repo["relationships"]["latest_default_branch_snapshot"]["data"]["id"]
+    repo_id       = repo['id']
+    snapshot      = repo['relationships']['latest_default_branch_snapshot']
+    snapshot_data = snapshot['data']
+    return {} if snapshot_data.nil?
+    snapshot_id   = snapshot_data['id']
 
     snapshot = cc.snapshot(repo_id, snapshot_id)
     coverage = cc.coverage(repo_id)
