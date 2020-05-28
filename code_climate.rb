@@ -28,14 +28,9 @@ end
 class CodeClimate
   def self.repo_stats(repo_name)
     cc = CodeClimate.new
-    repo = cc.repo_from_github_slug(repo_name)
-    return {} if repo.nil?
-    
-    repo_id       = repo['id']
-    snapshot      = repo['relationships']['latest_default_branch_snapshot']
-    snapshot_data = snapshot['data']
-    return {} if snapshot_data.nil?
-    snapshot_id   = snapshot_data['id']
+    repo_hash = cc.repo_from_github_slug(repo_name)
+    repo_id, snapshot_id = ids_from_repo_hash(repo_hash)
+    return {} if repo_id.nil? || snapshot_id.nil?
 
     snapshot = cc.snapshot(repo_id, snapshot_id)
     coverage = cc.coverage(repo_id)
@@ -54,6 +49,10 @@ class CodeClimate
       'coverage' => covered_percentage,
       'rating'   => snapshot['attributes']['ratings'].first['letter']
     }
+  end
+
+  def self.ids_from_repo_hash(repo_hash)
+    return repo_hash.try(:[], 'id'), repo_hash.try(:dig, "relationships", "latest_default_branch_snapshot", "data", "id")
   end
 
   def repo_from_github_slug(slug)
