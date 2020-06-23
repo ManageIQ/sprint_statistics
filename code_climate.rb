@@ -1,5 +1,6 @@
 require "net/http"
 require "json"
+require "active_support"
 require "active_support/core_ext"
 require "more_core_extensions/core_ext/array/element_counts"
 
