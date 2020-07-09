@@ -1,4 +1,4 @@
-class OctokitClient
+class GithubClient
   attr_reader :handle
 
   def initialize(access_token)

@@ -1,4 +1,4 @@
-require_relative 'octokit_client'
+require_relative 'github_client'
 require 'active_support'
 require 'active_support/core_ext'
 
@@ -33,7 +33,7 @@ class SprintStatistics
   end
 
   def client
-    @client ||= OctokitClient.new(@github_api_token).handle
+    @client ||= GithubClient.new(@github_api_token).handle
   end
 
   def fetch(collection, *args)
