@@ -154,6 +154,7 @@ ALL_REPO_NAMES = [
   "ManageIQ/manageiq-providers-google",
   "ManageIQ/manageiq-providers-kubernetes",
   "ManageIQ/manageiq-providers-lenovo",
+  "ManageIQ/manageiq-providers-nsxt",
   "ManageIQ/manageiq-providers-nuage",
   "ManageIQ/manageiq-providers-openshift",
   "ManageIQ/manageiq-providers-openstack",
