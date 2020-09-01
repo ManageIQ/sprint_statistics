@@ -152,6 +152,8 @@ ALL_REPO_NAMES = [
   "ManageIQ/manageiq-providers-azure_stack",
   "ManageIQ/manageiq-providers-foreman",
   "ManageIQ/manageiq-providers-google",
+  "ManageIQ/manageiq-providers-ibm_cloud",
+  "ManageIQ/manageiq-providers-ibm_terraform",
   "ManageIQ/manageiq-providers-kubernetes",
   "ManageIQ/manageiq-providers-lenovo",
   "ManageIQ/manageiq-providers-nsxt",
