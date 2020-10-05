@@ -148,6 +148,7 @@ ALL_REPO_NAMES = [
   "ManageIQ/manageiq-content",
   "ManageIQ/manageiq-providers-amazon",
   "ManageIQ/manageiq-providers-ansible_tower",
+  "ManageIQ/manageiq-providers-autosde",
   "ManageIQ/manageiq-providers-azure",
   "ManageIQ/manageiq-providers-azure_stack",
   "ManageIQ/manageiq-providers-foreman",
