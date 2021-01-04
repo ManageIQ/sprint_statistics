@@ -46,9 +46,9 @@ class SprintBoundaryIterator
 
   def compute_next_range(current)
     date = current.end + 2.weeks
-    while (date.month == 12 && (22..31).cover?(date.day)) || (date.month == 1 && (1..4).cover?(date.day))
+    while (date.month == 12 && (21..31).cover?(date.day)) || (date.month == 1 && (1..3).cover?(date.day))
       date += 1.weeks
     end
-    current = (current.end + 1.day)..date
+    (current.end + 1.day)..date
   end
 end
