@@ -14,11 +14,10 @@ class SprintBoundaryIterator
     init_iterator
     today = Date.today
 
-    number, range = next_boundary
-    while today > range.first
-      yield number, range
-
+    loop do
       number, range = next_boundary
+      yield number, range
+      break if range.end >= today
     end
   end
 
