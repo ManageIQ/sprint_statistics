@@ -1,0 +1,34 @@
+---
+8: # Inconsistent day of week for a roughly 3 week sprint
+- 2014-05-28
+- 2014-06-16
+9:
+- 2014-06-17
+- 2014-07-09
+10:
+- 2014-07-10
+- 2014-07-28
+11: # End of inconsistent cadence after which we start 3 week sprints ending on Tue
+- 2014-07-29
+- 2014-08-19
+13: # Switch to ending sprints on a Mon
+- 2014-09-10
+- 2014-09-29
+16: # Ended on a Tue instead of Mon
+- 2014-11-11
+- 2014-12-02
+17: # Winter break and then back to normal cadence
+- 2014-12-03
+- 2015-01-05
+39: # Ended on a Tue instead of Mon
+- 2016-03-29
+- 2016-04-19
+40: # Back to normal cadence
+- 2016-04-20
+- 2016-05-09
+51: # Winter break after which we moved to 2 week sprints
+- 2016-12-06
+- 2017-01-02
+76: # Winter break after which we standardized sprint boundary calculation
+- 2017-12-12
+- 2018-01-01
