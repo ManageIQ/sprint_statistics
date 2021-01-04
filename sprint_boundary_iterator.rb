@@ -1,8 +1,9 @@
+require "active_support/core_ext/numeric/time"
+require "pathname"
+require "yaml"
+
 class SprintBoundaryIterator
   include Enumerable
-  require "active_support/core_ext/numeric/time"
-  require 'pathname'
-  require 'yaml'
 
   def initialize
     exceptions_yml = Pathname.new(__dir__).join("sprint_boundary_exceptions.yml")
@@ -31,6 +32,7 @@ class SprintBoundaryIterator
 
   def init_iterator
     @last_number = INITIAL_SPRINT - 1
+    @last_range  = nil
   end
 
   def next_boundary
