@@ -1,54 +1,63 @@
+require "active_support/core_ext/numeric/time"
+require "pathname"
+require "yaml"
+
 class SprintBoundaryIterator
   include Enumerable
-  require "active_support/core_ext/numeric/time"
-  require 'pathname'
-  require 'yaml'
 
   def initialize
-    old_boundaries_yaml = Pathname.new(__dir__).join("old_sprint_boundaries.yml")
-    @old_boundaries = File.exist?(old_boundaries_yaml) ? YAML.load_file(old_boundaries_yaml) : []
+    exceptions_yml = Pathname.new(__dir__).join("sprint_boundary_exceptions.yml")
+    @exceptions = exceptions_yml.exist? ? YAML.load_file(exceptions_yml) : {}
+    @exceptions.transform_values! { |range_start, range_end| (range_start..range_end) }
   end
 
   def each
-    number, range = next_boundary
+    init_iterator
     today = Date.today
-    while today > range.first do
-      yield number, range
 
+    loop do
       number, range = next_boundary
+      yield number, range
+      break if range.end >= today
     end
   end
 
   def self.start_range
-    self.new.first.last
+    new.first.last
   end
 
   private
 
-  # The first sprint when we started doing the cadence that compute_next_range works with properly
-  FIRST_AUTOCOMPUTED_NUMBER = 76
-  FIRST_AUTOCOMPUTED_RANGE  = Date.parse("Dec 12, 2017")..Date.parse("Jan 1, 2018")
+  INITIAL_SPRINT = 8
 
-  def next_boundary
-    if @old_boundaries.any?
-      @last_number, start_date, end_date = @old_boundaries.shift
-      @last_range = start_date..end_date
-    elsif @last_number.nil?
-      @last_number = FIRST_AUTOCOMPUTED_NUMBER
-      @last_range  = FIRST_AUTOCOMPUTED_RANGE
-    else
-      @last_range   = compute_next_range(@last_range)
-      @last_number += 1
-    end
-
-    [@last_number, @last_range]
+  def init_iterator
+    @last_number = INITIAL_SPRINT - 1
+    @last_range  = nil
   end
 
-  def compute_next_range(current)
-    date = current.end + 2.weeks
-    while (date.month == 12 && (21..31).cover?(date.day)) || (date.month == 1 && (1..3).cover?(date.day))
-      date += 1.weeks
-    end
+  def next_boundary
+    next_number = @last_number + 1
+    next_range  = @exceptions[next_number] || compute_next_range(@last_range, sprint_length(next_number))
+
+    @last_number, @last_range = next_number, next_range
+  end
+
+  def compute_next_range(current, sprint_length)
+    date = current.end + sprint_length
+    date += 1.weeks while winter_break?(date) || july_4_break?(date)
     (current.end + 1.day)..date
+  end
+
+  # With sprint 52 (first sprint of 2017) we switched to 2 week sprints
+  def sprint_length(number)
+    number >= 52 ? 2.weeks : 3.weeks
+  end
+
+  def winter_break?(date)
+    (date.month == 12 && (21..31).cover?(date.day)) || (date.month == 1 && (1..3).cover?(date.day))
+  end
+
+  def july_4_break?(date)
+    date.month == 7 && (3..4).cover?(date.day)
   end
 end
