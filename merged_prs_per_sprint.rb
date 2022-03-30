@@ -14,7 +14,7 @@ class MergedPrs
     @config_file = opts[:config_file]
     @config = YAML.load_file(@config_file)
 
-    @output_file = opts[:output_file] || "merged_prs_for #{@sprint.title}.md"
+    @output_file = opts[:output_file] || "merged_prs_for_sprint_#{@sprint.number}.md"
   end
 
   def github_api_token
@@ -80,13 +80,13 @@ class MergedPrs
       pr.priority, pr.category = if priority
                                    [priority[:index], priority[:prefix]]
                                  else
-                                   [priorities.count, '']
+                                   [priorities.count, nil]
                                  end
     end.sort_by(&:priority)
   end
 
-  def title_markdown(pr)
-    "[#{pr.title} (##{pr.number})](#{pr.pull_request.html_url})"
+  def format_title(pr)
+    "#{pr.title} #{pr.pull_request.html_url}"
   end
 
   def repo_sprint_prs(fq_repo_name)
@@ -123,7 +123,7 @@ class MergedPrs
 
   def write_stdout_and_file(f, line)
     puts line
-    f.puts line + "<br/>"
+    f.puts line
   end
 
   def fetch_repo_prs(fq_repo_name, prs)
@@ -153,14 +153,18 @@ class MergedPrs
   def write_repo_prs(fq_repo_name, prs, total_pr_count, f)
     f.puts('')
 
-    puts "#{fq_repo_name.ljust(REPO_LJUST_LENGTH)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}"
-    f.puts "## #{repo_url_markdown(fq_repo_name)}\t #{prs.count.to_s.rjust(2)} / #{total_pr_count}<br/>"
+    puts "#{fq_repo_name.ljust(REPO_LJUST_LENGTH)}#{prs.count.to_s.rjust(2)} / #{total_pr_count}"
+    f.puts "## #{format_repo_name(fq_repo_name)} #{prs.count.to_s.rjust(2)} / #{total_pr_count}"
 
-    prioritize_prs(prs).each { |pr| f.puts "#{pr.category}, #{pr.user.login},#{title_markdown(pr)}<br/>" }
+    prs = prioritize_prs(prs)
+
+    user_width = prs.map { |pr| pr.user.login.size }.max
+
+    prs.each { |pr| f.puts "#{pr.category || " "}  #{pr.user.login.ljust(user_width)}  #{format_title(pr)}" }
   end
 
-  def repo_url_markdown(fq_repo_name)
-    "[#{fq_repo_name}](https://github.com/#{fq_repo_name}/pulls?q=merged%3A#{sprint_range})"
+  def format_repo_name(fq_repo_name)
+    "#{fq_repo_name} - https://github.com/#{fq_repo_name}/pulls?q=merged%3A#{sprint_range})"
   end
 
   def process_repos
@@ -178,7 +182,7 @@ class MergedPrs
 
       write_stdout_and_file(f, "Sprint Statistics for: \"#{@sprint.title}\"  (#{@sprint.range})")
       write_stdout_and_file(f, "")
-      write_stdout_and_file(f, "#{'Name'.ljust(REPO_LJUST_LENGTH)}\t PRs: (Selected/Total)")
+      puts "#{'Name'.ljust(REPO_LJUST_LENGTH)}PRs: (Selected/Total)"
 
       empty_repos = []
       repo_prs.sort_by(&:first).each do |fq_repo_name, (prs, total_pr_count)|
