@@ -5,22 +5,17 @@ require 'yaml'
 require 'optimist'
 
 class GithubActivity
-  attr_reader :opts, :config, :output_type, :sprint
+  attr_reader :opts, :config, :sprint
 
   def initialize(opts)
     @opts = opts
     config_file = opts[:config_file]
     @config = YAML.load_file(config_file)
 
-    @output_type = opts[:output_type]
     repo_given  = opts[:repo_slug_given] ? opts[:repo_slug] : config[:repo_slug]
     @repos      = repo_given ? Array(repo_given) : stats.default_repos.sort
     @github_org = repo_given ? "" : "ManageIQ"
     @sprint     = get_sprint(opts)
-  end
-
-  def output_file
-    @output_file ||= opts[:output_file] || "sprint_#{sprint.number}.#{output_type}"
   end
 
   def get_sprint(opts)
@@ -193,25 +188,33 @@ class GithubActivity
     puts "#{repo} stats: #{stats.inspect}"
     puts "Analyzing Repo: #{repo} completed"
 
-    if output_type == 'csv'
-      labels_string = stats['prs']['merged_labels'].values_at(*LABELS).collect(&:to_i).join(",")
-      return "#{repo},#{stats['prs']['counts']['created']},#{stats['prs']['counts']['merged']},#{labels_string},#{stats['prs']['counts']['still_open']}"
-    else
-      return stats
-    end
+    stats
   end
 
   def process_repos
-    results = @repos.collect do |repo|
+    stats = @repos.collect do |repo|
       process_repo(repo)
     end
 
-    File.open(output_file, 'w') do |f|
-      if output_type == 'yaml'
-        f.write(results.to_yaml)
-      else
-        f.puts "repo,opened,merged,#{LABELS.collect { |l| "closed_#{l}" }.join(",")},remaining_open"
-        results.each { |line| f.puts(line) }
+    write_yaml(stats)
+    write_csv(stats)
+  end
+
+  def output_file(output_type)
+    "sprint_#{sprint.number}.#{output_type}"
+  end
+
+  def write_yaml(stats)
+    File.write(output_file("yaml"), stats.to_yaml)
+  end
+
+  def write_csv(stats)
+    File.open(output_file("csv"), 'w') do |f|
+      f.puts "repo,opened,merged,#{LABELS.collect { |l| "closed_#{l}" }.join(",")},remaining_open"
+      stats.each do |stat|
+        labels_string = stat['prs']['merged_labels'].values_at(*LABELS).collect(&:to_i).join(",")
+        line = "#{stat['repo_slug']},#{stat['prs']['counts']['created']},#{stat['prs']['counts']['merged']},#{labels_string},#{stat['prs']['counts']['still_open']}"
+        f.puts(line)
       end
     end
   end
@@ -238,20 +241,6 @@ class GithubActivity
           "Config file name",
           :short    => "c",
           :default  => "config.yaml",
-          :type     => :string,
-          :required => false
-
-      opt :output_file,
-          "Output file name",
-          :short    => "o",
-          :default  => nil,
-          :type     => :string,
-          :required => false
-
-      opt :output_type,
-          "Output file type",
-          :short    => "t",
-          :default  => 'yaml',
           :type     => :string,
           :required => false
     end
