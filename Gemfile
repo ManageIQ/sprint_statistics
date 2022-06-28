@@ -8,3 +8,4 @@ gem 'more_core_extensions',               :require => false
 gem 'octokit',              "~> 4.3",     :require => false
 gem 'parallel',                           :require => false
 gem 'optimist',                           :require => false
+gem 'psych',                ">=3.3.2",    :require => false
