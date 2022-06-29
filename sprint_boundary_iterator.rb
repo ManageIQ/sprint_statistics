@@ -10,7 +10,8 @@ class SprintBoundaryIterator
     @last_day = last_day
 
     exceptions_yml = Pathname.new(__dir__).join("sprint_boundary_exceptions.yml")
-    @exceptions = exceptions_yml.exist? ? YAML.unsafe_load(exceptions_yml.read) : {}
+    @exceptions = {} unless exceptions_yml.exist?
+    @exceptions ||= YAML.respond_to?(:unsafe_load) ? YAML.unsafe_load(exceptions_yml.read) : YAML.load(exceptions_yml.read)
     @exceptions.transform_values! { |range_start, range_end| (range_start..range_end) }
   end
 
