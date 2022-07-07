@@ -3,3 +3,4 @@ Gemfile.lock
 *.md
 *.csv
 config*.yaml
+sprint_*.yaml
