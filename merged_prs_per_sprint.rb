@@ -14,7 +14,7 @@ class MergedPrs
     @config_file = opts[:config_file]
     @config = YAML.load_file(@config_file)
 
-    @output_file = opts[:output_file] || "merged_prs_for_sprint_#{@sprint.number}.md"
+    @output_file = opts[:output_file] || "merged_prs_per_sprint_#{@sprint.number}.md"
   end
 
   def github_api_token
