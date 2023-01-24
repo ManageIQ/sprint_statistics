@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require_relative 'sprint_statistics'
 require_relative 'sprint'
 require 'yaml'
