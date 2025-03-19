@@ -50,12 +50,9 @@ class GithubActivity
       puts "GitHub query=#{query.inspect} returned #{results.total_count} items"
       #puts "query results=#{results.inspect}"
       results.items
-    rescue Octokit::TooManyRequests, Octokit::Forbidden => err
-      secondary = err.to_s.include?("exceeded a secondary rate limit")
-      raise if err.is_a?(Octokit::Forbidden) && !secondary
-
+    rescue Octokit::TooManyRequests => err
       retry_time = 60
-      puts "GitHub API #{"secondary " if secondary}rate limit exceeded.  Retrying in #{retry_time} seconds."
+      $stderr.puts "GitHub API rate limit exceeded. Retrying in #{retry_time} seconds."
       sleep retry_time
       retry
     end
@@ -264,4 +261,3 @@ def completed_in
 end
 
 completed_in { GithubActivity.run(ARGV) }
-
