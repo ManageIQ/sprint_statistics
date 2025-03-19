@@ -6,6 +6,10 @@ require "yaml"
 class SprintBoundaryIterator
   include Enumerable
 
+  def self.[](sprint_number)
+    new(nil)[sprint_number]
+  end
+
   def initialize(last_day = Date.today)
     @last_day = last_day
 
@@ -20,8 +24,12 @@ class SprintBoundaryIterator
     loop do
       number, range = next_boundary
       yield number, range
-      break if range.end >= @last_day
+      break if @last_day && range.end >= @last_day
     end
+  end
+
+  def [](sprint_number)
+    detect { |number, _range| number == sprint_number.to_i }.last
   end
 
   def self.start_range
