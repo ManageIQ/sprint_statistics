@@ -1,9 +1,19 @@
 #!/usr/bin/env ruby
+
+require "bundler/inline"
+gemfile do
+  source "https://rubygems.org"
+  gem "activesupport"
+  gem "more_core_extensions", :require => false
+  gem "multi_repo", :require => "multi_repo/cli"
+  gem "octokit"
+  gem "optimist"
+end
+
 require_relative 'sprint_statistics'
 require_relative 'sprint'
 require 'more_core_extensions/core_ext/array/element_counts'
 require 'yaml'
-require 'optimist'
 
 class GithubActivity
   attr_reader :opts, :config, :sprint
@@ -26,7 +36,7 @@ class GithubActivity
 
     sprint = (sprint_given == 'last') ? Sprint.last_completed : Sprint.create_by_sprint_number(sprint_given.to_i)
     if sprint.nil?
-      STDERR.puts "invalid sprint <#{sprint_given}> specified"
+      $stderr.puts "ERROR: invalid sprint <#{sprint_given}> specified"
       exit
     end
     sprint
@@ -47,12 +57,12 @@ class GithubActivity
   def execute_query(query)
     begin
       results = stats.client.search_issues(query)
-      puts "GitHub query=#{query.inspect} returned #{results.total_count} items"
+      puts "GitHub query=#{query.inspect} returned #{results.total_count} items".light_black
       #puts "query results=#{results.inspect}"
       results.items
     rescue Octokit::TooManyRequests => err
       retry_time = 60
-      $stderr.puts "GitHub API rate limit exceeded. Retrying in #{retry_time} seconds."
+      $stderr.puts "GitHub API rate limit exceeded. Retrying in #{retry_time} seconds.".light_yellow
       sleep retry_time
       retry
     end
