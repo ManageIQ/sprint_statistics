@@ -4,6 +4,7 @@ require "bundler/inline"
 gemfile do
   source "https://rubygems.org"
   gem "activesupport"
+  gem "faraday", "< 2"
   gem "more_core_extensions", :require => false
   gem "multi_repo", :require => "multi_repo/cli"
   gem "octokit"
