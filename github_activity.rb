@@ -57,8 +57,9 @@ class GithubActivity
 
   def execute_query(query)
     begin
+      puts "GitHub query=#{query.inspect}".light_black
       results = stats.client.search_issues(query)
-      puts "GitHub query=#{query.inspect} returned #{results.total_count} items".light_black
+      puts "  returned #{results.total_count} items".light_black
       #puts "query results=#{results.inspect}"
       results.items
     rescue Octokit::TooManyRequests => err
