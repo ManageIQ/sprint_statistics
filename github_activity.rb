@@ -4,6 +4,7 @@ require "bundler/inline"
 gemfile do
   source "https://rubygems.org"
   gem "activesupport"
+  gem "faraday", "< 2"
   gem "more_core_extensions", :require => false
   gem "multi_repo", :require => "multi_repo/cli"
   gem "octokit"
@@ -56,8 +57,9 @@ class GithubActivity
 
   def execute_query(query)
     begin
+      puts "GitHub query=#{query.inspect}".light_black
       results = stats.client.search_issues(query)
-      puts "GitHub query=#{query.inspect} returned #{results.total_count} items".light_black
+      puts "  returned #{results.total_count} items".light_black
       #puts "query results=#{results.inspect}"
       results.items
     rescue Octokit::TooManyRequests => err
