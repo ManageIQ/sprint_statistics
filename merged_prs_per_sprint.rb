@@ -214,7 +214,7 @@ class MergedPrs
       opt :config_file,
           "Config file name",
           :short    => "c",
-          :default  => "config.yaml",
+          :default  => File.exist?("config.local.yaml") ? "config.local.yaml" : "config.yaml",
           :type     => :string,
           :required => false
 
